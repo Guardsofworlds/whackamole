@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Galaxy Strike: Sound & Steel</title>
+
+<style>
+/* =========================
+   CORE STYLES
+========================= */
+body {
+    margin: 0; background: #02020a; overflow: hidden;
+    font-family: 'Segoe UI', sans-serif; cursor: crosshair; color: #0ff; user-select: none;
+}
+
+.star { position: absolute; width: 2px; height: 2px; background: white; opacity: 0.5; animation: fall linear infinite; z-index: -1; }
+@keyframes fall { from { transform: translateY(-10vh); } to { transform: translateY(110vh); } }
+
+#wrap { display: flex; height: 100vh; padding: 25px; gap: 25px; box-sizing: border-box; }
+
+/* GAME GRID */
+#game {
+    flex: 2.5; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+    gap: 20px; background: radial-gradient(circle, rgba(0,255,255,0.08), transparent);
+    border-radius: 40px; padding: 30px; box-shadow: inset 0 0 100px #000;
+}
+
+.hole {
+    position: relative; border-radius: 50%; overflow: hidden;
+    background: radial-gradient(circle at 30% 30%, #112, #000);
+    border: 5px solid #1a1a2e; box-shadow: inset 0 20px 40px #000;
+}
+
+/* =========================
+   IMPROVED TARGETS
+========================= */
+.target {
+    position: absolute; bottom: -150%; left: 50%; transform: translateX(-50%) scale(0.7);
+    width: 115px; height: 115px; border-radius: 40% 40% 45% 45%;
+    transition: bottom 0.35s cubic-bezier(.175, .885, .32, 1.275);
+    border: 2px solid rgba(255,255,255,0.1);
+}
+
+.target.up { bottom: 8%; transform: translateX(-50%) scale(1); }
+
+/* IMPROVED T-VISOR CLONE */
+.clone {
+    background: #e6e6e6;
+    background-image: 
+        linear-gradient(to bottom, #fff, #999), /* Helmet shine */
+        linear-gradient(black, black), /* Horizontal visor */
+        linear-gradient(black, black), /* Vertical visor stem */
+        radial-gradient(circle at 50% 40%, #00faff 5%, transparent 40%); /* Visor glow */
+    background-size: 100% 100%, 70% 12%, 14% 35%, 100% 100%;
+    background-position: center, center 35%, center 55%, center;
+    background-repeat: no-repeat;
+    border-bottom: 8px solid #0055aa; /* Blue legion marking */
+}
+
+.trooper {
+    background: #fff;
+    background-image: radial-gradient(circle at 30% 45%, #111 12%, transparent 13%), radial-gradient(circle at 70% 45%, #111 12%, transparent 13%);
+}
+
+.sith {
+    background: #300;
+    background-image: radial-gradient(circle at 30% 45%, #ff0 8%, #f00 15%, transparent 16%), radial-gradient(circle at 70% 45%, #ff0 8%, #f00 15%, transparent 16%);
+}
+
+.is-boss { border: 5px solid #ffd700 !important; box-shadow: 0 0 35px #ffd700; }
+
+/* UI ELEMENTS */
+.sidebar {
+    flex: 1; display: flex; flex-direction: column; gap: 15px; padding: 25px;
+    background: rgba(10,15,30,0.9); border-radius: 25px; border: 2px solid #0ff3; backdrop-filter: blur(15px);
+}
+
+.stat-card { background: #0006; padding: 12px; border-radius: 12px; border-left: 5px solid #0ff; display: flex; justify-content: space-between; font-weight: bold; }
+.stat-val { font-size: 1.3rem; color: #fff; text-shadow: 0 0 10px #0ff; }
+
+#feed { flex-grow: 1; background: #0005; border-radius: 12px; padding: 10px; font-family: monospace; font-size: 0.8rem; overflow: hidden; color: #0fa; }
+.feed-entry { margin-bottom: 4px; border-bottom: 1px solid #0ff1; }
+
+.lux-btn {
+    background: linear-gradient(#0ff, #0088cc); border: none; border-radius: 15px; color: #000;
+    font-weight: 900; font-size: 1.2rem; padding: 18px; cursor: pointer;
+    box-shadow: 0 6px 0 #004466; transition: 0.1s;
+}
+.lux-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #004466; }
+
+/* VFX */
+.spawn-flare {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 0; height: 0; background: #0ff; border-radius: 50%;
+    animation: flare 0.4s ease-out forwards; pointer-events: none;
+}
+@keyframes flare { 0% { width: 0; height: 0; opacity: 1; } 100% { width: 140px; height: 140px; opacity: 0; } }
+</style>
+</head>
+<body>
+
+<div id="wrap">
+    <div class="sidebar">
+        <h2 style="margin:0">COMMAND</h2>
+        <div class="stat-card">Score <span id="score" class="stat-val">0</span></div>
+        <div class="stat-card">Quota <span style="color:#f0f" class="stat-val">100</span></div>
+        <div class="stat-card">Time <span id="time" class="stat-val">30s</span></div>
+        
+        <div id="quests">
+            <h4 style="margin:5px 0">CAREER</h4>
+            <div id="questList"></div>
+        </div>
+        <button id="startBtn" class="lux-btn">INITIALIZE</button>
+    </div>
+
+    <div id="game"></div>
+
+    <div class="sidebar">
+        <h2 style="margin:0">LOGS</h2>
+        <div id="feed"></div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    // --- AUDIO ENGINE ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playSound(freq, type, duration, vol=0.1) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + duration);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + duration);
+    }
+
+    const game = document.getElementById("game");
+    const scoreEl = document.getElementById("score");
+    const timeEl = document.getElementById("time");
+    const startBtn = document.getElementById("startBtn");
+    const feed = document.getElementById("feed");
+    const questList = document.getElementById("questList");
+
+    let score = 0; let time = 30; let isPlaying = false;
+    let spawnLoop, timerLoop;
+    const WIN_QUOTA = 100;
+
+    let career = JSON.parse(localStorage.getItem("galaxyEliteV3")) || { kills: 0, sith: 0, bosses: 0 };
+
+    function log(msg, color="#0fa") {
+        const div = document.createElement("div"); div.className = "feed-entry";
+        div.style.color = color; div.textContent = `> ${msg}`;
+        feed.prepend(div);
+        if(feed.children.length > 15) feed.lastChild.remove();
+    }
+
+    function updateCareer() {
+        questList.innerHTML = `<div class="feed-entry">Kills: ${career.kills}</div><div class="feed-entry">Sith: ${career.sith}</div>`;
+        localStorage.setItem("galaxyEliteV3", JSON.stringify(career));
+    }
+
+    for(let i=0; i<9; i++) {
+        const h = document.createElement("div"); h.className="hole";
+        const t = document.createElement("div"); t.className="target";
+        h.appendChild(t); game.appendChild(h);
+    }
+
+    function spawn() {
+        if (!isPlaying) return;
+        const targets = Array.from(document.querySelectorAll(".target")).filter(t => !t.classList.contains("up"));
+        if (targets.length === 0) return;
+
+        const t = targets[Math.floor(Math.random() * targets.length)];
+        const isBoss = Math.random() < 0.1;
+        const type = ["trooper", "clone", "sith"][Math.floor(Math.random()*3)];
+
+        // Spawn Flare
+        const f = document.createElement("div"); f.className="spawn-flare";
+        t.parentElement.appendChild(f); setTimeout(() => f.remove(), 400);
+
+        // Spawn Sound (High bloop)
+        playSound(400, 'sine', 0.1, 0.05);
+
+        t.className = `target ${type} ${isBoss ? 'is-boss' : ''}`;
+        t.dataset.hp = isBoss ? "3" : "1";
+        t.classList.add("up");
+
+        setTimeout(() => { if(t.classList.contains("up")) t.classList.remove("up"); }, 1300);
+    }
+
+    game.addEventListener("mousedown", (e) => {
+        if (!isPlaying || !e.target.classList.contains("up")) return;
+        
+        // Shoot Sound (Laser)
+        playSound(800, 'sawtooth', 0.2, 0.1);
+
+        const t = e.target;
+        let hp = parseInt(t.dataset.hp);
+        hp--; t.dataset.hp = hp;
+
+        if (hp <= 0) {
+            // Kill Sound (Explosion)
+            playSound(150, 'square', 0.3, 0.1);
+            
+            t.classList.remove("up");
+            const points = t.classList.contains("is-boss") ? 20 : 10;
+            score += points;
+            scoreEl.textContent = score;
+            
+            career.kills++;
+            if(t.classList.contains("sith")) career.sith++;
+            updateCareer();
+
+            log(`HIT: +${points} PTS`);
+            if(score >= WIN_QUOTA) log("QUOTA ACHIEVED!", "#f0f");
+        }
+    });
+
+    startBtn.addEventListener("click", () => {
+        if (isPlaying) return;
+        audioCtx.resume(); // Chrome requires user gesture to start audio
+        score = 0; time = 30; isPlaying = true;
+        scoreEl.textContent = "0";
+        startBtn.disabled = true;
+        log("MISSION START", "#fff");
+
+        spawnLoop = setInterval(spawn, 750);
+        timerLoop = setInterval(() => {
+            time--; timeEl.textContent = time + "s";
+            if (time <= 0) {
+                clearInterval(spawnLoop); clearInterval(timerLoop);
+                isPlaying = false; startBtn.disabled = false;
+                if(score >= WIN_QUOTA) alert("VICTORY! Quota reached.");
+                else alert("FAILED: Quota not met.");
+            }
+        }, 1000);
+    });
+
+    updateCareer();
+    // Starfield
+    for(let i=0; i<50; i++) {
+        const s = document.createElement("div"); s.className="star";
+        s.style.left = Math.random()*100+"vw"; s.style.top = Math.random()*100+"vh";
+        s.style.animationDuration = (2+Math.random()*3)+"s";
+        document.body.appendChild(s);
+    }
+});
+</script>
+</body>
+</html>

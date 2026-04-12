@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galactic Mole Hunter — Mission Launcher</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --cyan: #00e5ff;
+      --purple: #aa00ff;
+      --red: #ff1744;
+      --green: #00e676;
+      --gold: #ffd740;
+      --bg: #03040d;
+      --panel: rgba(0, 10, 30, 0.88);
+      --border: rgba(0, 229, 255, 0.35);
+      --text: #c8e6ff;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      overflow: hidden;
+    }
+
+    canvas#starfield {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%; z-index: 0;
+    }
+
+    .scanlines {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%; z-index: 1;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px, transparent 3px,
+        rgba(0,0,0,0.07) 3px, rgba(0,0,0,0.07) 4px
+      );
+      pointer-events: none;
+    }
+
+    .vignette {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%; z-index: 1;
+      background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.7) 100%);
+      pointer-events: none;
+    }
+
+    .launcher {
+      position: relative; z-index: 2;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 100vh; gap: 20px;
+      padding: 20px;
+    }
+
+    /* Corner bracket decoration */
+    .bracket {
+      position: fixed;
+      width: 60px; height: 60px;
+      border-color: var(--cyan);
+      border-style: solid;
+      opacity: 0.6;
+    }
+    .bracket.tl { top: 20px; left: 20px; border-width: 2px 0 0 2px; }
+    .bracket.tr { top: 20px; right: 20px; border-width: 2px 2px 0 0; }
+    .bracket.bl { bottom: 20px; left: 20px; border-width: 0 0 2px 2px; }
+    .bracket.br { bottom: 20px; right: 20px; border-width: 0 2px 2px 0; }
+
+    /* Animated border line */
+    .scan-line {
+      position: fixed; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(to right, transparent, var(--cyan), transparent);
+      opacity: 0.3;
+      animation: scanMove 6s linear infinite;
+      z-index: 1;
+    }
+    @keyframes scanMove {
+      0% { top: 0%; } 100% { top: 100%; }
+    }
+
+    .emblem {
+      width: 90px; height: 90px;
+      animation: rotateSlow 20s linear infinite;
+    }
+    @keyframes rotateSlow {
+      from { transform: rotate(0deg); } to { transform: rotate(360deg); }
+    }
+
+    .game-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(2.2rem, 5.5vw, 4.8rem);
+      font-weight: 900;
+      text-align: center;
+      color: #fff;
+      text-shadow:
+        0 0 15px var(--cyan),
+        0 0 35px var(--cyan),
+        0 0 70px rgba(0,229,255,0.4);
+      letter-spacing: 6px;
+      line-height: 1.1;
+      animation: titlePulse 3s ease-in-out infinite;
+    }
+    @keyframes titlePulse {
+      0%, 100% { text-shadow: 0 0 15px var(--cyan), 0 0 35px var(--cyan), 0 0 70px rgba(0,229,255,0.4); }
+      50% { text-shadow: 0 0 25px var(--cyan), 0 0 55px var(--cyan), 0 0 100px rgba(0,229,255,0.6); }
+    }
+
+    .game-subtitle {
+      font-size: 0.95rem;
+      color: var(--cyan);
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
+
+    .divider {
+      width: 300px; height: 1px;
+      background: linear-gradient(to right, transparent, var(--cyan), transparent);
+      opacity: 0.5;
+    }
+
+    .stats-row {
+      display: flex; gap: 32px;
+      align-items: center;
+    }
+    .stat-box {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 4px;
+      padding: 12px 20px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    .stat-label {
+      font-size: 0.65rem;
+      letter-spacing: 3px;
+      color: var(--cyan);
+      opacity: 0.7;
+    }
+    .stat-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.4rem;
+      color: var(--gold);
+      text-shadow: 0 0 10px var(--gold);
+    }
+
+    /* Character preview strip */
+    .char-strip {
+      display: flex; gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 700px;
+    }
+    .char-card {
+      width: 70px; height: 90px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 4px;
+      padding: 6px 4px;
+      cursor: default;
+      transition: all 0.3s;
+      animation: cardFloat 3s ease-in-out infinite;
+    }
+    .char-card:nth-child(2) { animation-delay: 0.4s; }
+    .char-card:nth-child(3) { animation-delay: 0.8s; }
+    .char-card:nth-child(4) { animation-delay: 1.2s; }
+    .char-card:nth-child(5) { animation-delay: 1.6s; }
+    .char-card:nth-child(6) { animation-delay: 2.0s; }
+    .char-card:nth-child(7) { animation-delay: 2.4s; }
+    .char-card:nth-child(8) { animation-delay: 2.8s; }
+    @keyframes cardFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    .char-card:hover {
+      border-color: var(--cyan);
+      background: rgba(0, 229, 255, 0.08);
+      transform: translateY(-8px) scale(1.05);
+      box-shadow: 0 0 20px rgba(0,229,255,0.3);
+    }
+    .char-card svg { width: 44px; height: 54px; }
+    .char-pts {
+      font-size: 0.6rem;
+      color: var(--gold);
+      letter-spacing: 1px;
+    }
+    .char-name {
+      font-size: 0.55rem;
+      color: var(--text);
+      text-align: center;
+      letter-spacing: 0.5px;
+      opacity: 0.7;
+    }
+
+    .launch-btn {
+      position: relative;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: var(--bg);
+      background: var(--cyan);
+      border: none;
+      padding: 16px 52px;
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      overflow: hidden;
+      transition: all 0.3s;
+      box-shadow:
+        0 0 20px rgba(0,229,255,0.5),
+        0 0 40px rgba(0,229,255,0.2);
+    }
+    .launch-btn::before {
+      content: '';
+      position: absolute; top: -50%; left: -75%;
+      width: 50%; height: 200%;
+      background: rgba(255,255,255,0.3);
+      transform: skewX(-20deg);
+      animation: btnShine 3s ease-in-out infinite;
+    }
+    @keyframes btnShine {
+      0%, 70%, 100% { left: -75%; }
+      40% { left: 130%; }
+    }
+    .launch-btn:hover {
+      background: #fff;
+      color: #000;
+      box-shadow: 0 0 40px rgba(0,229,255,0.9), 0 0 80px rgba(0,229,255,0.4);
+      transform: scale(1.05);
+    }
+    .launch-btn:active { transform: scale(0.98); }
+
+    .footer-text {
+      position: fixed;
+      bottom: 24px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.65rem;
+      letter-spacing: 3px;
+      color: rgba(200,230,255,0.3);
+      white-space: nowrap;
+    }
+
+    /* Horizontal scrolling marquee at top */
+    .ticker {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 28px;
+      background: rgba(0, 229, 255, 0.06);
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+      z-index: 5;
+      display: flex; align-items: center;
+    }
+    .ticker-inner {
+      white-space: nowrap;
+      animation: tickerScroll 25s linear infinite;
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      color: var(--cyan);
+      opacity: 0.7;
+    }
+    @keyframes tickerScroll {
+      0% { transform: translateX(100vw); }
+      100% { transform: translateX(-100%); }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+<div class="scan-line"></div>
+
+<div class="ticker">
+  <div class="ticker-inner">
+    ★ IMPERIAL FORCES DETECTED ★ CLONE ARMY MOBILIZING ★ XENOMORPH THREAT LEVEL: CRITICAL ★ DARK SIDE ACTIVITY INCREASING ★ PREDATOR SIGHTINGS REPORTED ★ R2 UNITS GONE ROGUE ★ YODA SIGHTINGS NEAR DAGOBAH ★ BOBA FETT BOUNTY ACTIVE ★
+  </div>
+</div>
+
+<div class="bracket tl"></div>
+<div class="bracket tr"></div>
+<div class="bracket bl"></div>
+<div class="bracket br"></div>
+
+<div class="launcher">
+
+  <!-- Emblem -->
+  <svg class="emblem" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="45" fill="none" stroke="#00e5ff" stroke-width="1.5" opacity="0.6"/>
+    <circle cx="50" cy="50" r="36" fill="none" stroke="#00e5ff" stroke-width="0.5" opacity="0.4"/>
+    <polygon points="50,8 56,30 78,30 61,44 67,66 50,52 33,66 39,44 22,30 44,30" fill="none" stroke="#00e5ff" stroke-width="1.5" opacity="0.8"/>
+    <circle cx="50" cy="50" r="5" fill="#00e5ff" opacity="0.9"/>
+    <!-- tick marks -->
+    <line x1="50" y1="5" x2="50" y2="12" stroke="#00e5ff" stroke-width="1.5" opacity="0.5"/>
+    <line x1="50" y1="88" x2="50" y2="95" stroke="#00e5ff" stroke-width="1.5" opacity="0.5"/>
+    <line x1="5" y1="50" x2="12" y2="50" stroke="#00e5ff" stroke-width="1.5" opacity="0.5"/>
+    <line x1="88" y1="50" x2="95" y2="50" stroke="#00e5ff" stroke-width="1.5" opacity="0.5"/>
+  </svg>
+
+  <h1 class="game-title">GALACTIC<br>MOLE HUNTER</h1>
+  <p class="game-subtitle">Defend the Galaxy. Eliminate the Threat.</p>
+
+  <div class="divider"></div>
+
+  <div class="stats-row">
+    <div class="stat-box">
+      <span class="stat-label">TOP SCORE</span>
+      <span class="stat-value" id="highScore">000000</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-label">MISSION TIME</span>
+      <span class="stat-value">60 SEC</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-label">ENEMY TYPES</span>
+      <span class="stat-value">8</span>
+    </div>
+  </div>
+
+  <!-- Character preview strip -->
+  <div class="char-strip" id="charStrip"></div>
+
+  <button class="launch-btn" onclick="window.location.href='game.html'">
+    ▶ LAUNCH MISSION
+  </button>
+
+</div>
+
+<div class="footer-text">GALACTIC MOLE HUNTER v1.0 &nbsp;·&nbsp; CLASSIFIED IMPERIAL DATABASE</div>
+
+<script>
+  // ─── Starfield ───
+  const canvas = document.getElementById('starfield');
+  const ctx = canvas.getContext('2d');
+  let stars = [];
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  function initStars() {
+    stars = [];
+    for (let i = 0; i < 280; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: Math.random() * 1.8 + 0.2,
+        speed: Math.random() * 0.3 + 0.05,
+        twinkle: Math.random() * Math.PI * 2,
+        twinkleSpeed: Math.random() * 0.03 + 0.01,
+        color: ['#fff', '#adf', '#cef', '#ffd', '#faa'][Math.floor(Math.random() * 5)]
+      });
+    }
+  }
+
+  function drawStars() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Nebula blobs
+    const grad1 = ctx.createRadialGradient(canvas.width * 0.2, canvas.height * 0.3, 0, canvas.width * 0.2, canvas.height * 0.3, 300);
+    grad1.addColorStop(0, 'rgba(80,0,180,0.06)');
+    grad1.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad1; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const grad2 = ctx.createRadialGradient(canvas.width * 0.8, canvas.height * 0.7, 0, canvas.width * 0.8, canvas.height * 0.7, 250);
+    grad2.addColorStop(0, 'rgba(0,100,180,0.07)');
+    grad2.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad2; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    stars.forEach(s => {
+      s.twinkle += s.twinkleSpeed;
+      const alpha = 0.4 + 0.6 * Math.abs(Math.sin(s.twinkle));
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = s.color;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+      s.y += s.speed;
+      if (s.y > canvas.height) { s.y = 0; s.x = Math.random() * canvas.width; }
+    });
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(drawStars);
+  }
+
+  resizeCanvas(); initStars(); drawStars();
+  window.addEventListener('resize', () => { resizeCanvas(); initStars(); });
+
+  // ─── High score ───
+  const hs = localStorage.getItem('gmh_highscore') || 0;
+  document.getElementById('highScore').textContent = String(hs).padStart(6, '0');
+
+  // ─── Character preview cards ───
+  const PREVIEW_CHARS = [
+    { name: 'Stormtrooper', pts: '1 PT', color: '#e8e8e8', svg: stormtrooperSVG() },
+    { name: 'Clone', pts: '1 PT', color: '#aaddff', svg: cloneSVG() },
+    { name: 'Xenomorph', pts: '2 PT', color: '#88ff88', svg: xenomorphSVG() },
+    { name: 'R2-D2', pts: '2 PT', color: '#4488ff', svg: r2d2SVG() },
+    { name: 'Yoda', pts: '3 PT', color: '#88dd44', svg: yodaSVG() },
+    { name: 'Boba Fett', pts: '3 PT', color: '#88bb66', svg: bobaFettSVG() },
+    { name: 'Predator', pts: '4 PT', color: '#ddaa44', svg: predatorSVG() },
+    { name: 'Darth Vader', pts: '5 PT', color: '#ff4444', svg: vaderSVG() },
+  ];
+
+  const strip = document.getElementById('charStrip');
+  PREVIEW_CHARS.forEach(c => {
+    const card = document.createElement('div');
+    card.className = 'char-card';
+    card.innerHTML = `${c.svg}<span class="char-name">${c.name}</span><span class="char-pts">${c.pts}</span>`;
+    strip.appendChild(card);
+  });
+
+  // ─── SVG Definitions ───
+  function stormtrooperSVG() {
+    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="50" cy="48" rx="37" ry="40" fill="#eee" stroke="#ccc" stroke-width="1.5"/>
+      <ellipse cx="50" cy="32" rx="28" ry="18" fill="#fff" opacity="0.4"/>
+      <rect x="16" y="40" width="68" height="9" rx="3" fill="#e0e0e0" stroke="#bbb" stroke-width="0.5"/>
+      <rect x="17" y="46" width="66" height="11" rx="2" fill="#111"/>
+      <rect x="39" y="46" width="22" height="22" rx="2" fill="#111"/>
+      <path d="M22 68 Q50 82 78 68 L76 82 Q50 92 24 82 Z" fill="#e4e4e4"/>
+      <rect x="30" y="70" width="16" height="8" rx="1.5" fill="#ccc"/>
+      <rect x="54" y="70" width="16" height="8" rx="1.5" fill="#ccc"/>
+      <rect x="38" y="90" width="24" height="10" rx="2" fill="#ddd"/>
+      <rect x="18" y="98" width="64" height="30" rx="4" fill="#eee" stroke="#ccc"/>
+      <rect x="26" y="106" width="18" height="10" rx="2" fill="#ddd"/>
+      <rect x="56" y="106" width="18" height="10" rx="2" fill="#ddd"/>
+    </svg>`;
+  }
+
+  function cloneSVG() {
+    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="50" cy="48" rx="37" ry="40" fill="#eee" stroke="#ccc" stroke-width="1.5"/>
+      <ellipse cx="50" cy="32" rx="28" ry="18" fill="#fff" opacity="0.4"/>
+      <rect x="16" y="40" width="68" height="9" rx="3" fill="#aaddff" stroke="#88bbdd" stroke-width="0.5"/>
+      <rect x="17" y="46" width="66" height="11" rx="2" fill="#111"/>
+      <rect x="39" y="46" width="22" height="22" rx="2" fill="#1a2a44"/>
+      <path d="M22 68 Q50 82 78 68 L76 82 Q50 92 24 82 Z" fill="#e0e8ff"/>
+      <rect x="30" y="70" width="16" height="8" rx="1.5" fill="#aaddff"/>
+      <rect x="54" y="70" width="16" height="8" rx="1.5" fill="#aaddff"/>
+      <rect x="38" y="90" width="24" height="10" rx="2" fill="#cce4ff"/>
+      <rect x="18" y="98" width="64" height="30" rx="4" fill="#eef2ff" stroke="#aac"/>
+      <rect x="26" y="106" width="18" height="10" rx="2" fill="#bbddff"/>
+      <rect x="56" y="106" width="18" height="10" rx="2" fill="#bbddff"/>
+    </svg>`;
+  }
+
+  function xenomorphSVG() {
+    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="50" cy="30" rx="22" ry="10" fill="#1a2a1a" stroke="#2a4a2a"/>
+      <path d="M28 28 Q50 5 72 28 Q80 50 78 70 Q65 88 50 90 Q35 88 22 70 Q20 50 28 28 Z" fill="#0d1a0d" stroke="#1a3a1a" stroke-width="1.5"/>
+      <path d="M30 25 Q50 8 70 25" fill="none" stroke="#2a5a2a" stroke-width="2"/>
+      <path d="M50 8 L50 2 M44 10 L40 5 M56 10 L60 5" stroke="#1a3a1a" stroke-width="1.5"/>
+      <ellipse cx="37" cy="50" rx="8" ry="6" fill="#0a1a0a"/>
+      <ellipse cx="37" cy="50" rx="5" ry="4" fill="#1a4a1a"/>
+      <ellipse cx="63" cy="50" rx="8" ry="6" fill="#0a1a0a"/>
+      <ellipse cx="63" cy="50" rx="5" ry="4" fill="#1a4a1a"/>
+      <ellipse cx="37" cy="50" rx="2.5" ry="2" fill="#88ff88" opacity="0.6"/>
+      <ellipse cx="63" cy="50" rx="2.5" ry="2" fill="#88ff88" opacity="0.6"/>
+      <path d="M34 70 Q50 80 66 70" fill="none" stroke="#2a5a2a" stroke-width="1.5"/>
+      <line x1="36" y1="73" x2="36" y2="80" stroke="#2a5a2a" stroke-width="1"/>
+      <line x1="42" y1="76" x2="42" y2="83" stroke="#2a5a2a" stroke-width="1"/>
+      <line x1="50" y1="77" x2="50" y2="85" stroke="#2a5a2a" stroke-width="1.5"/>
+      <line x1="58" y1="76" x2="58" y2="83" stroke="#2a5a2a" stroke-width="1"/>
+      <line x1="64" y1="73" x2="64" y2="80" stroke="#2a5a2a" stroke-width="1"/>
+      <rect x="24" y="88" width="52" height="40" rx="5" fill="#0d1a0d" stroke="#1a3a1a"/>
+      <path d="M30 96 Q50 92 70 96 L70 124 Q50 128 30 124 Z" fill="#0a150a"/>
+      <line x1="35" y1="102" x2="65" y2="102" stroke="#1a4a1a" stroke-width="1"/>
+      <line x1="33" y1="110" x2="67" y2="110" stroke="#1a4a1a" stroke-width="1"/>
+      <line x1="35" y1="118" x2="65" y2="118" stroke="#1a4a1a" stroke-width="1"/>
+    </svg>`;
+  }
+
+  function r2d2SVG() {
+    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="50" cy="42" rx="34" ry="36" fill="#e8f0ff" stroke="#aac" stroke-width="1.5"/>
+      <ellipse cx="50" cy="28" rx="25" ry="15" fill="#fff" opacity="0.5"/>
+      <rect x="16" y="36" width="68" height="8" rx="2" fill="#4488ff" stroke="#2266cc"/>
+      <circle cx="50" cy="52" r="12" fill="#1a1a2a" stroke="#4488ff" stroke-width="2"/>
+      <circle cx="50" cy="52" r="8" fill="#2244aa"/>
+      <circle cx="50" cy="52" r="4" fill="#88aaff"/>
+      <circle cx="50" cy="52" r="1.5" fill="#fff"/>
+      <rect x="20" y="64" width="16" height="10" rx="2" fill="#4488ff" opacity="0.8"/>
+      <rect x="64" y="64" width="16" height="10" rx="2" fill="#4488ff" opacity="0.8"/>
+      <rect x="38" y="62" width="24" height="14" rx="2" fill="#c8d8ff"/>
+      <rect x="16" y="78" width="68" height="48" rx="5" fill="#dde8ff" stroke="#aac" stroke-width="1"/>
+      <rect x="22" y="84" width="28" height="18" rx="3" fill="#4488ff" opacity="0.7"/>
+      <rect x="54" y="84" width="22" height="18" rx="3" fill="#c8d8ff"/>
+      <circle cx="58" cy="93" r="3" fill="#ff4444"/>
+      <circle cx="66" cy="93" r="3" fill="#44ff44"/>
+      <circle cx="70" cy="101" r="2" fill="#ffff44"/>
+      <rect x="22" y="108" width="56" height="12" rx="2" fill="#c8d8ff"/>
+      <line x1="28" y1="114" x2="72" y2="114" stroke="#4488ff" stroke-width="1.5"/>
+    </svg>`;
+  }
+
+  function yodaSVG() {
+    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+      <path d="M15 55 Q10 45 12 35 Q15 22 30 25 L35 48 Z" fill="#5a8a3a" stroke="#3a6a1a"/>
+      <path d="M85 55 Q90 45 88 35 Q85 22 70 25 L65 48 Z" fill="#5a8a3a" stroke="#3a6a1a"/>
+      <ellipse cx="50" cy="52" rx="36" ry="38" fill="#6aaa4a" stroke="#4a8a2a" stroke-width="1.5"/>
+      <ellipse cx="50" cy="38" rx="26" ry="18" fill="#7abb5a" opacity="0.5"/>
+      <ellipse cx="35" cy="50" rx="10" ry="8" fill="#2a1a0a" stroke="#1a0a00"/>
+      <ellipse cx="65" cy="50" rx="10" ry="8" fill="#2a1a0a" stroke="#1a0a00"/>
+      <ellipse cx="35" cy="50" rx="7" ry="5.5" fill="#4a3a1a"/>
+      <ellipse cx="65" cy="50" rx="7" ry="5.5" fill="#4a3a1a"/>
+      <ellipse cx="34" cy="49" rx="3" ry="3" fill="#aacc88" opacity="0.9"/>
+      <ellipse cx="64" cy="49" rx="3" ry="3" fill="#aacc88" opacity="0.9"/>
+      <ellipse cx="33" cy="48" rx="1.5" ry="1.5" fill="#fff" opacity="0.6"/>
+      <ellipse cx="63" cy="48" rx="1.5" ry="1.5" fill="#fff" opacity="0.6"/>
+      <path d="M38 66 Q50 72 62 66" fill="none" stroke="#4a8a2a" stroke-width="2"/>
+      <path d="M42 60 Q50 58 58 60" fill="none" stroke="#5a6a4a" stroke-width="1"/>
+      <path d="M35 56 Q30 58 28 62 M65 56 Q70 58 72 62" fill="none" stroke="#4a6a2a" stroke-width="1"/>
+      <rect x="26" y="88" width="48" height="40" rx="4" fill="#4a3a2a" stroke="#3a2a1a"/>
+      <rect x="30" y="92" width="40" height="32" rx="3" fill="#5a4a3a"/>
+      <line x1="30" y1="100" x2="70" y2="100" stroke="#3a2a1a" stroke-width="1"/>
+      <line x1="30" y1="108" x2="70" y2="108" stroke="#3a2a1a" stroke-width="1"/>
+      <line x1="30" y1="116" x2="70" y2="116" stroke="#3a2a1a" stroke-width="1"/>
+    </svg>`;
+  }
+
+  function bobaFettSVG() {
+    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="50" cy="48" rx="37" ry="40" fill="#5a7a5a" stroke="#3a5a3a" stroke-width="1.5"/>
+      <ellipse cx="50" cy="30" rx="28" ry="18" fill="#6a8a6a" opacity="0.5"/>
+      <path d="M13 46 L87 46 L80 62 Q65 72 50 72 Q35 72 20 62 Z" fill="#4a6a4a"/>
+      <rect x="17" y="42" width="66" height="12" rx="2" fill="#111"/>
+      <rect x="38" y="42" width="24" height="8" rx="1" fill="#222"/>
+      <ellipse cx="50" cy="40" rx="8" ry="3" fill="#3a5a3a"/>
+      <rect x="30" y="58" width="14" height="8" rx="1.5" fill="#8aaa8a" opacity="0.8"/>
+      <rect x="56" y="58" width="14" height="8" rx="1.5" fill="#8aaa8a" opacity="0.8"/>
+      <path d="M35 66 Q50 74 65 66 L63 78 Q50 84 37 78 Z" fill="#5a7a5a"/>
+      <rect x="38" y="88" width="24" height="10" rx="2" fill="#4a6a4a"/>
+      <rect x="18" y="96" width="64" height="32" rx="4" fill="#5a7a5a" stroke="#3a5a3a"/>
+      <rect x="24" y="103" width="22" height="14" rx="2" fill="#4a6a4a"/>
+      <rect x="54" y="103" width="22" height="14" rx="2" fill="#4a6a4a"/>
+      <circle cx="50" cy="110" r="4" fill="#cc4422" stroke="#aa2200"/>
+    </svg>`;
+  }
+
+  function predatorSVG() {
+    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+      <path d="M28 18 Q22 8 18 5 L24 22" stroke="#aa7722" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M36 14 Q32 4 30 2 L35 18" stroke="#aa7722" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M44 12 Q42 2 42 0 L46 14" stroke="#aa7722" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M56 12 Q58 2 58 0 L54 14" stroke="#aa7722" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M64 14 Q68 4 70 2 L65 18" stroke="#aa7722" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M72 18 Q78 8 82 5 L76 22" stroke="#aa7722" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <ellipse cx="50" cy="55" rx="35" ry="38" fill="#bb8844" stroke="#8a5a22" stroke-width="1.5"/>
+      <ellipse cx="50" cy="40" rx="26" ry="18" fill="#cc9944" opacity="0.5"/>
+      <ellipse cx="35" cy="50" rx="9" ry="8" fill="#1a1a0a" stroke="#2a2a0a"/>
+      <ellipse cx="65" cy="50" rx="9" ry="8" fill="#1a1a0a" stroke="#2a2a0a"/>
+      <ellipse cx="35" cy="50" rx="5" ry="5" fill="#3a2a0a"/>
+      <ellipse cx="65" cy="50" rx="5" ry="5" fill="#3a2a0a"/>
+      <circle cx="34" cy="49" r="2" fill="#ffcc22" opacity="0.8"/>
+      <circle cx="64" cy="49" r="2" fill="#ffcc22" opacity="0.8"/>
+      <path d="M36 68 L44 72 L50 70 L56 72 L64 68" fill="none" stroke="#8a5a22" stroke-width="1.5"/>
+      <path d="M40 72 L38 80 M44 72 L43 80 M50 70 L50 78 M56 72 L57 80 M60 72 L62 80" stroke="#8a5a22" stroke-width="1.5"/>
+      <rect x="25" y="90" width="50" height="38" rx="4" fill="#aa7733" stroke="#8a5a22"/>
+      <rect x="30" y="96" width="40" height="26" rx="3" fill="#bb8844"/>
+      <circle cx="38" cy="107" r="4" fill="#cc2200"/>
+      <circle cx="50" cy="107" r="4" fill="#2222cc"/>
+      <circle cx="62" cy="107" r="4" fill="#cc2200"/>
+      <line x1="30" y1="116" x2="70" y2="116" stroke="#8a5a22" stroke-width="1"/>
+    </svg>`;
+  }
+
+  function vaderSVG() {
+    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="50" cy="46" rx="37" ry="40" fill="#111" stroke="#2a2a2a" stroke-width="1.5"/>
+      <path d="M13 46 Q50 8 87 46" fill="#1a1a1a" stroke="#2a2a2a" stroke-width="1.5"/>
+      <path d="M24 52 L38 32 L50 26 L62 32 L76 52 L74 74 Q62 86 50 88 Q38 86 26 74 Z" fill="#0a0a0a"/>
+      <path d="M36 58 L50 50 L64 58 L64 70 Q50 78 36 70 Z" fill="#080808" stroke="#222" stroke-width="0.5"/>
+      <line x1="38" y1="63" x2="62" y2="63" stroke="#2a2a2a" stroke-width="1.5"/>
+      <line x1="36" y1="68" x2="64" y2="68" stroke="#2a2a2a" stroke-width="1.5"/>
+      <line x1="38" y1="73" x2="62" y2="73" stroke="#2a2a2a" stroke-width="1.5"/>
+      <ellipse cx="35" cy="48" rx="9" ry="6" fill="#1a0000"/>
+      <ellipse cx="35" cy="48" rx="6" ry="4" fill="#cc0000"/>
+      <ellipse cx="35" cy="47" rx="3.5" ry="2.5" fill="#ff2222"/>
+      <ellipse cx="65" cy="48" rx="9" ry="6" fill="#1a0000"/>
+      <ellipse cx="65" cy="48" rx="6" ry="4" fill="#cc0000"/>
+      <ellipse cx="65" cy="47" rx="3.5" ry="2.5" fill="#ff2222"/>
+      <ellipse cx="35" cy="48" rx="10" ry="7" fill="#ff0000" opacity="0.12"/>
+      <ellipse cx="65" cy="48" rx="10" ry="7" fill="#ff0000" opacity="0.12"/>
+      <rect x="9" y="46" width="12" height="22" rx="2" fill="#111" stroke="#2a2a2a"/>
+      <rect x="79" y="46" width="12" height="22" rx="2" fill="#111" stroke="#2a2a2a"/>
+      <rect x="30" y="86" width="40" height="12" rx="3" fill="#111" stroke="#222"/>
+      <rect x="14" y="96" width="72" height="32" rx="4" fill="#0d0d0d" stroke="#2a2a2a" stroke-width="1.5"/>
+      <rect x="20" y="102" width="26" height="20" rx="2" fill="#1a1a1a"/>
+      <circle cx="27" cy="108" r="2.5" fill="#ff0000"/>
+      <circle cx="34" cy="108" r="2.5" fill="#00ff00"/>
+      <circle cx="27" cy="115" r="2.5" fill="#0000ff"/>
+      <circle cx="34" cy="115" r="2.5" fill="#ffff00"/>
+      <rect x="50" y="102" width="32" height="20" rx="2" fill="#1a1a1a"/>
+      <rect x="53" y="105" width="26" height="4" rx="1" fill="#333"/>
+      <rect x="53" y="111" width="26" height="4" rx="1" fill="#333"/>
+      <rect x="53" y="117" width="26" height="4" rx="1" fill="#333"/>
+    </svg>`;
+  }
+</script>
+</body>
+</html>
