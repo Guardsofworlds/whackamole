@@ -3,298 +3,416 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Galactic Mole Hunter — Mission</title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<title>Whack-A-Mole — Tactical Operations</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --cyan:#00e5ff;--purple:#aa00ff;--red:#ff1744;--green:#00e676;--gold:#ffd740;
-  --bg:#02020e;--panel:rgba(4,10,28,0.92);--border:rgba(0,229,255,0.25);--text:#c8e6ff;
+  --bg:#060810;
+  --surf1:#0b0f18;
+  --surf2:#111926;
+  --surf3:#161f2e;
+  --border:rgba(45,65,85,0.6);
+  --border-hi:rgba(60,90,120,0.8);
+  --text:#8a9fb8;
+  --text-bright:#b8ccd8;
+  --text-hi:#d4e4ef;
+  --accent:#3a8ab4;
+  --accent-dim:rgba(58,138,180,0.15);
+  --gold:#c8901a;
+  --gold-dim:rgba(200,144,26,0.15);
+  --red:#9a2828;
+  --red-bright:#c03535;
+  --green:#2a6a45;
+  --green-bright:#37895a;
+  --amber:#b07820;
 }
-html,body{width:100%;height:100%;background:var(--bg);color:var(--text);
-  font-family:'Share Tech Mono',monospace;overflow:hidden;cursor:crosshair;user-select:none}
+html,body{
+  width:100%;height:100%;background:var(--bg);color:var(--text);
+  font-family:'Inter',sans-serif;overflow:hidden;cursor:crosshair;user-select:none;
+}
 
 canvas#bg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
-.scanlines{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;
-  background:repeating-linear-gradient(to bottom,transparent 0px,transparent 3px,rgba(0,0,0,0.06) 3px,rgba(0,0,0,0.06) 4px);pointer-events:none}
+
+/* subtle scan lines — very faint, realistic monitor feel */
+.scanlines{
+  position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;
+  background:repeating-linear-gradient(to bottom,transparent 0px,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 3px);
+  pointer-events:none;
+}
 
 /* ── LAYOUT ── */
-#wrap{position:relative;z-index:2;display:flex;height:100vh;padding:18px;gap:18px}
+#wrap{position:relative;z-index:2;display:flex;height:100vh;padding:14px;gap:12px}
+
+/* ── PANEL SHARED ── */
+.panel{
+  background:var(--surf1);
+  border:1px solid var(--border);
+  border-radius:6px;
+  position:relative;
+  overflow:hidden;
+}
+.panel::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(to right, transparent, var(--accent), transparent);
+  opacity:0.5;
+}
+.panel-header{
+  padding:10px 14px 8px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;
+}
+.panel-header-label{
+  font-family:'Rajdhani',sans-serif;font-size:0.7rem;font-weight:600;
+  letter-spacing:3px;text-transform:uppercase;color:var(--accent);
+}
+.panel-header-dot{
+  width:5px;height:5px;border-radius:50%;background:var(--accent);
+  box-shadow:0 0 6px var(--accent);flex-shrink:0;
+}
+.panel-header-dot.green{background:var(--green-bright);box-shadow:0 0 6px var(--green-bright)}
+.panel-header-dot.amber{background:var(--amber);box-shadow:0 0 6px var(--amber)}
 
 /* ── LEFT SIDEBAR ── */
 .sidebar-left{
-  width:200px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;
-  background:var(--panel);border:1px solid var(--border);border-radius:16px;
-  padding:18px 14px;backdrop-filter:blur(20px);
+  width:190px;flex-shrink:0;
+  display:flex;flex-direction:column;gap:10px;
+  padding:0 0 12px;
 }
-.sidebar-title{
-  font-family:'Orbitron',sans-serif;font-size:0.65rem;letter-spacing:4px;
-  color:var(--cyan);text-transform:uppercase;text-align:center;opacity:0.8;
-  padding-bottom:10px;border-bottom:1px solid var(--border);
-}
+
 .stat-block{
-  background:rgba(0,229,255,0.04);border:1px solid var(--border);border-radius:10px;
-  padding:10px 12px;display:flex;flex-direction:column;gap:3px;
+  margin:0 12px;
+  background:var(--surf2);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:8px 12px;
 }
-.stat-label{font-size:0.58rem;letter-spacing:3px;color:var(--cyan);opacity:0.6;text-transform:uppercase}
+.stat-label{
+  font-size:0.6rem;letter-spacing:2.5px;text-transform:uppercase;
+  color:var(--text);opacity:0.55;margin-bottom:2px;
+}
 .stat-value{
-  font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:700;color:#fff;
-  text-shadow:0 0 12px var(--cyan);line-height:1;
+  font-family:'Rajdhani',sans-serif;font-size:1.6rem;font-weight:700;
+  color:var(--text-hi);line-height:1;letter-spacing:1px;
 }
-.stat-value.red{color:#ff4d6d;text-shadow:0 0 12px #ff4d6d}
-.stat-value.gold{color:var(--gold);text-shadow:0 0 12px var(--gold)}
+.stat-value.accent{color:var(--accent)}
+.stat-value.gold{color:var(--gold)}
+.stat-value.red{color:var(--red-bright)}
 
 #timerBar{
-  width:100%;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;margin-top:4px;
+  width:100%;height:3px;background:rgba(255,255,255,0.06);
+  border-radius:2px;overflow:hidden;margin-top:6px;
 }
-#timerFill{height:100%;width:100%;background:linear-gradient(to right,var(--cyan),#00aaff);
-  border-radius:3px;transition:width 0.9s linear,background 0.5s;}
+#timerFill{
+  height:100%;width:100%;
+  background:var(--accent);
+  border-radius:2px;transition:width 0.9s linear,background 0.5s;
+}
 
-.combo-display{
-  text-align:center;padding:8px;background:rgba(255,215,64,0.05);
-  border:1px solid rgba(255,215,64,0.2);border-radius:10px;
+.combo-block{
+  margin:0 12px;
+  background:var(--surf2);border:1px solid var(--border);border-radius:4px;
+  padding:8px 12px;display:flex;align-items:center;justify-content:space-between;
 }
-.combo-label{font-size:0.55rem;letter-spacing:3px;color:var(--gold);opacity:0.7}
-.combo-value{font-family:'Orbitron',sans-serif;font-size:1.8rem;color:var(--gold);
-  text-shadow:0 0 20px var(--gold);line-height:1.1}
+.combo-label{font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--gold);opacity:0.7}
+.combo-value{
+  font-family:'Rajdhani',sans-serif;font-size:1.5rem;font-weight:700;
+  color:var(--gold);letter-spacing:1px;
+}
 
 #startBtn{
-  margin-top:auto;font-family:'Orbitron',sans-serif;font-size:0.8rem;font-weight:700;
-  letter-spacing:3px;color:#000;background:var(--cyan);border:none;
-  padding:14px 10px;border-radius:10px;cursor:pointer;text-transform:uppercase;
-  box-shadow:0 0 20px rgba(0,229,255,0.4);transition:all 0.2s;
+  margin:auto 12px 0;
+  font-family:'Rajdhani',sans-serif;font-size:0.85rem;font-weight:700;
+  letter-spacing:3px;color:var(--bg);
+  background:var(--accent);
+  border:none;border-radius:4px;
+  padding:12px 10px;cursor:pointer;text-transform:uppercase;
   position:relative;overflow:hidden;
+  transition:background 0.2s,box-shadow 0.2s;
 }
-#startBtn::before{content:'';position:absolute;top:-50%;left:-75%;width:50%;height:200%;
-  background:rgba(255,255,255,0.35);transform:skewX(-20deg);
-  animation:btnShine 3s ease-in-out infinite}
-@keyframes btnShine{0%,70%,100%{left:-75%}40%{left:130%}}
-#startBtn:hover{background:#fff;box-shadow:0 0 40px rgba(0,229,255,0.8)}
-#startBtn:disabled{opacity:0.4;cursor:not-allowed}
+#startBtn::after{
+  content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;
+  background:linear-gradient(to right,transparent,rgba(255,255,255,0.15),transparent);
+  transform:skewX(-20deg);animation:btnSheen 4s ease-in-out infinite;
+}
+@keyframes btnSheen{0%,60%,100%{left:-100%}40%{left:150%}}
+#startBtn:hover{background:#4a9dc8;box-shadow:0 0 18px rgba(58,138,180,0.4)}
+#startBtn:disabled{opacity:0.35;cursor:not-allowed}
 
 /* ── GAME GRID ── */
 #game{
   flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
-  gap:18px;padding:18px;
-  background:radial-gradient(ellipse at center,rgba(0,100,200,0.06) 0%,transparent 70%);
-  border-radius:20px;border:1px solid var(--border);backdrop-filter:blur(4px);
+  gap:14px;padding:14px;
+  background:var(--surf1);
+  border:1px solid var(--border);border-radius:6px;
+  position:relative;overflow:hidden;
+}
+#game::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(to right,transparent,var(--accent),transparent);opacity:0.3;
 }
 
-/* ── HOLES ── */
+/* ── HOLES — tactical access panel ── */
 .hole{
   position:relative;border-radius:50%;overflow:visible;
-  background:radial-gradient(ellipse at 40% 35%,#0a0e22 0%,#030510 60%,#000 100%);
-  border:3px solid #0a0e30;
-  box-shadow:inset 0 8px 30px rgba(0,0,0,0.9),inset 0 -4px 15px rgba(0,100,200,0.08),
-             0 0 0 1px rgba(0,100,200,0.15);
+  /* Dark metal pit with layered depth */
+  background:
+    radial-gradient(ellipse at 38% 30%, #1a2230 0%, #0d141e 40%, #07090e 75%, #020305 100%);
+  border:2px solid #1a2535;
+  box-shadow:
+    inset 0 6px 24px rgba(0,0,0,0.95),
+    inset 0 -2px 10px rgba(0,0,0,0.7),
+    inset 0 2px 6px rgba(58,138,180,0.04),
+    0 0 0 1px rgba(30,50,70,0.4),
+    0 2px 8px rgba(0,0,0,0.6);
 }
-/* Hole rim glow */
+/* Beveled rim */
+.hole::before{
+  content:'';position:absolute;inset:-2px;border-radius:50%;
+  background:conic-gradient(
+    from 200deg,
+    rgba(80,110,140,0.5) 0deg, rgba(40,60,80,0.2) 60deg,
+    rgba(20,35,50,0.1) 150deg, rgba(60,90,115,0.4) 240deg,
+    rgba(80,110,140,0.5) 360deg
+  );
+  z-index:-1;
+}
+/* Inner shadow ring */
 .hole::after{
-  content:'';position:absolute;inset:-3px;border-radius:50%;
-  background:transparent;border:3px solid rgba(0,229,255,0.06);
+  content:'';position:absolute;inset:8%;border-radius:50%;
+  box-shadow:inset 0 4px 16px rgba(0,0,0,0.8);
   pointer-events:none;
 }
 
-/* ── TARGETS (3D CSS figures) ── */
+/* ── TARGETS ── */
 .target{
   position:absolute;bottom:-115%;left:50%;transform:translateX(-50%) scale(0.85);
-  width:90px;height:108px;
-  transition:bottom 0.32s cubic-bezier(.175,.885,.32,1.275),transform 0.32s;
-  filter:drop-shadow(0 4px 8px rgba(0,0,0,0.8));
+  width:88px;height:106px;
+  transition:bottom 0.3s cubic-bezier(.175,.885,.32,1.275),transform 0.3s;
+  filter:drop-shadow(0 6px 12px rgba(0,0,0,0.9));
   cursor:pointer;
-  transform-style:preserve-3d;
 }
-.target.up{bottom:6%;transform:translateX(-50%) scale(1)}
-.target svg{width:100%;height:100%;filter:drop-shadow(0 0 6px rgba(0,0,0,0.6))}
-
-/* hit flash */
-.target.hit-flash{animation:hitFlash 0.15s ease-out}
-@keyframes hitFlash{0%{filter:brightness(3) saturate(0)}100%{filter:brightness(1) saturate(1)}}
-
-/* boss glow */
-.target.is-boss svg{filter:drop-shadow(0 0 10px gold) drop-shadow(0 0 20px gold)}
+.target.up{bottom:5%;transform:translateX(-50%) scale(1)}
+.target svg{width:100%;height:100%}
+.target.hit-flash{animation:hitFlash 0.12s ease-out}
+@keyframes hitFlash{0%{filter:brightness(4) saturate(0) drop-shadow(0 0 8px #fff)}100%{filter:brightness(1) saturate(1) drop-shadow(0 6px 12px rgba(0,0,0,0.9))}}
+.target.is-boss svg{filter:drop-shadow(0 0 8px var(--gold)) drop-shadow(0 6px 12px rgba(0,0,0,0.9))}
 
 /* ── RIGHT SIDEBAR ── */
 .sidebar-right{
-  width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;
-  background:var(--panel);border:1px solid var(--border);border-radius:16px;
-  padding:18px 14px;backdrop-filter:blur(20px);
+  width:210px;flex-shrink:0;
+  display:flex;flex-direction:column;gap:0;
+  padding:0 0 12px;
 }
-
-.feed-header{
-  font-family:'Orbitron',sans-serif;font-size:0.65rem;letter-spacing:4px;
-  color:var(--green);text-transform:uppercase;text-align:center;opacity:0.9;
-  padding-bottom:10px;border-bottom:1px solid rgba(0,230,118,0.2);
-  display:flex;align-items:center;justify-content:center;gap:8px;
-}
-.feed-dot{width:6px;height:6px;background:var(--green);border-radius:50%;
-  animation:feedPulse 1.2s ease-in-out infinite}
-@keyframes feedPulse{0%,100%{box-shadow:0 0 4px var(--green)}50%{box-shadow:0 0 12px var(--green),0 0 20px var(--green)}}
 
 #feed{
-  flex:1;overflow:hidden;display:flex;flex-direction:column;gap:4px;
-  min-height:0;
+  flex:1;overflow:hidden;
+  display:flex;flex-direction:column;gap:3px;
+  padding:8px 10px;min-height:0;
 }
 .feed-entry{
-  padding:5px 8px;border-radius:6px;font-size:0.72rem;letter-spacing:1px;
-  border-left:3px solid;line-height:1.4;
-  animation:feedSlide 0.3s ease-out;
+  padding:4px 8px;border-radius:3px;
+  font-size:0.68rem;letter-spacing:0.5px;line-height:1.4;
+  border-left:2px solid;
+  font-family:'Inter',sans-serif;font-weight:400;
 }
-@keyframes feedSlide{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
-.feed-entry.hit{color:#7fffb2;border-color:#00e676;background:rgba(0,230,118,0.06)}
-.feed-entry.miss{color:#ff8a9b;border-color:#ff1744;background:rgba(255,23,68,0.06)}
-.feed-entry.info{color:#80d8ff;border-color:#00b0ff;background:rgba(0,176,255,0.06)}
-.feed-entry.boss{color:var(--gold);border-color:var(--gold);background:rgba(255,215,64,0.06)}
-.feed-entry.warn{color:#ffab40;border-color:#ff6d00;background:rgba(255,109,0,0.06)}
+@keyframes feedSlide{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+.feed-entry{animation:feedSlide 0.25s ease-out}
+.feed-entry.hit{color:#6aaa88;border-color:var(--green-bright);background:rgba(42,106,69,0.08)}
+.feed-entry.miss{color:#a06060;border-color:var(--red-bright);background:rgba(154,40,40,0.08)}
+.feed-entry.info{color:#6888a8;border-color:var(--accent);background:rgba(58,138,180,0.06)}
+.feed-entry.boss{color:var(--gold);border-color:var(--gold);background:rgba(200,144,26,0.08)}
+.feed-entry.warn{color:#a08040;border-color:var(--amber);background:rgba(176,120,32,0.08)}
 
-.enemy-legend{display:flex;flex-direction:column;gap:6px}
-.legend-title{font-size:0.55rem;letter-spacing:3px;color:var(--cyan);opacity:0.6;margin-bottom:2px}
-.legend-row{
-  display:flex;align-items:center;gap:8px;padding:5px 8px;
-  background:rgba(0,229,255,0.03);border-radius:8px;border:1px solid rgba(255,255,255,0.04);
+.roster-section{padding:8px 10px 0;display:flex;flex-direction:column;gap:5px}
+.roster-label{
+  font-size:0.58rem;letter-spacing:2.5px;text-transform:uppercase;
+  color:var(--text);opacity:0.45;margin-bottom:2px;
 }
-.legend-icon{width:28px;height:28px;flex-shrink:0}
+.legend-row{
+  display:flex;align-items:center;gap:7px;
+  padding:4px 7px;
+  background:var(--surf2);border:1px solid var(--border);border-radius:3px;
+}
+.legend-icon{width:26px;height:26px;flex-shrink:0}
 .legend-icon svg{width:100%;height:100%}
 .legend-info{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
-.legend-name{font-size:0.68rem;color:#e0f0ff;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.legend-pts{font-family:'Orbitron',sans-serif;font-size:0.7rem;color:var(--gold);
-  text-shadow:0 0 8px var(--gold)}
+.legend-name{
+  font-size:0.65rem;color:var(--text-bright);letter-spacing:0.5px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.legend-pts{
+  font-family:'Rajdhani',sans-serif;font-size:0.68rem;font-weight:600;
+  color:var(--gold);letter-spacing:1px;
+}
 
 /* ── VFX LAYER ── */
 #vfx{position:fixed;top:0;left:0;width:100%;height:100%;z-index:10;pointer-events:none}
 
-/* Laser ray */
+/* Laser */
 .laser-ray{
   position:absolute;pointer-events:none;transform-origin:0 50%;
-  height:3px;border-radius:2px;
-  background:linear-gradient(to right,rgba(255,255,255,0.9),rgba(0,229,255,0.6),transparent);
-  box-shadow:0 0 6px var(--cyan),0 0 12px var(--cyan),0 0 24px rgba(0,229,255,0.5);
-  animation:laserFade 0.25s ease-out forwards;
+  height:2px;border-radius:1px;
+  animation:laserFade 0.22s ease-out forwards;
 }
-@keyframes laserFade{0%{opacity:1;transform:scaleY(1)}100%{opacity:0;transform:scaleY(0.5)}}
+@keyframes laserFade{
+  0%{opacity:1;transform:scaleY(1)}
+  100%{opacity:0;transform:scaleY(0.5)}
+}
 
 /* Hit burst */
 .hit-burst{
   position:absolute;pointer-events:none;
-  width:60px;height:60px;margin:-30px 0 0 -30px;
+  width:56px;height:56px;margin:-28px 0 0 -28px;
   border-radius:50%;
-  animation:burstOut 0.4s ease-out forwards;
+  animation:burstOut 0.35s ease-out forwards;
 }
 @keyframes burstOut{
   0%{transform:scale(0.2);opacity:1}
-  60%{transform:scale(1.4);opacity:0.7}
-  100%{transform:scale(2);opacity:0}
+  60%{transform:scale(1.3);opacity:0.7}
+  100%{transform:scale(1.9);opacity:0}
 }
 
 /* Score pop */
 .score-pop{
   position:absolute;pointer-events:none;
-  font-family:'Orbitron',sans-serif;font-size:1.2rem;font-weight:700;
-  text-shadow:0 0 10px currentColor;
-  animation:popUp 0.9s cubic-bezier(.175,.885,.32,1.275) forwards;
+  font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:700;letter-spacing:2px;
+  text-shadow:0 2px 6px rgba(0,0,0,0.8);
+  animation:popUp 0.85s cubic-bezier(.175,.885,.32,1.275) forwards;
   white-space:nowrap;
 }
 @keyframes popUp{
-  0%{transform:translateY(0) scale(0.5);opacity:1}
-  60%{transform:translateY(-40px) scale(1.1);opacity:1}
-  100%{transform:translateY(-80px) scale(0.8);opacity:0}
+  0%{transform:translateY(0) scale(0.6);opacity:1}
+  60%{transform:translateY(-36px) scale(1.05);opacity:1}
+  100%{transform:translateY(-72px) scale(0.85);opacity:0}
 }
 
-/* Spark particles */
+/* Spark */
 .spark{
-  position:absolute;pointer-events:none;width:4px;height:4px;border-radius:50%;
-  animation:sparkFly var(--dur,0.5s) ease-out forwards;
+  position:absolute;pointer-events:none;width:3px;height:3px;border-radius:50%;
+  animation:sparkFly var(--dur,0.4s) ease-out forwards;
 }
 @keyframes sparkFly{
-  0%{transform:translate(0,0) scale(1);opacity:1}
+  0%{transform:translate(0,0) scale(1);opacity:0.9}
   100%{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0}
 }
 
-/* Light beam from hole */
+/* Hole spawn beam */
 .light-beam{
   position:absolute;left:50%;bottom:50%;transform:translateX(-50%);
-  width:50px;transform-origin:bottom center;
-  pointer-events:none;
-  animation:beamPulse 0.5s ease-out forwards;
+  width:40px;transform-origin:bottom center;pointer-events:none;
+  animation:beamPulse 0.45s ease-out forwards;
 }
 @keyframes beamPulse{
   0%{opacity:0;transform:translateX(-50%) scaleY(0)}
-  30%{opacity:1;transform:translateX(-50%) scaleY(1)}
-  100%{opacity:0;transform:translateX(-50%) scaleY(1.2)}
+  25%{opacity:0.8;transform:translateX(-50%) scaleY(1)}
+  100%{opacity:0;transform:translateX(-50%) scaleY(1.1)}
 }
 
-/* ── END SCREEN ── */
+/* ── END SCREEN — After Action Report ── */
 #endScreen{
   display:none;position:fixed;inset:0;z-index:100;
-  background:rgba(1,1,15,0.92);backdrop-filter:blur(16px);
-  flex-direction:column;align-items:center;justify-content:center;gap:0;
+  background:rgba(4,6,12,0.94);backdrop-filter:blur(20px);
+  flex-direction:column;align-items:center;justify-content:center;
 }
 #endScreen.show{display:flex}
 
-.end-card{
-  background:rgba(4,10,30,0.95);border:1px solid var(--border);border-radius:24px;
-  padding:48px 56px;display:flex;flex-direction:column;align-items:center;gap:20px;
-  box-shadow:0 0 60px rgba(0,229,255,0.15),0 0 120px rgba(0,229,255,0.06);
-  max-width:500px;width:90%;
-  animation:cardIn 0.6s cubic-bezier(.175,.885,.32,1.275) forwards;
+.report-card{
+  background:var(--surf1);
+  border:1px solid var(--border-hi);
+  border-radius:6px;
+  max-width:480px;width:90%;
+  overflow:hidden;
+  animation:reportIn 0.5s cubic-bezier(.175,.885,.32,1.275) forwards;
 }
-@keyframes cardIn{from{transform:scale(0.8) translateY(30px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+@keyframes reportIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
 
-.end-title{
-  font-family:'Orbitron',sans-serif;font-size:clamp(1.6rem,4vw,2.8rem);font-weight:900;
-  letter-spacing:6px;text-transform:uppercase;text-align:center;line-height:1.1;
+.report-header{
+  background:var(--surf2);
+  padding:18px 24px 14px;
+  border-bottom:1px solid var(--border);
+  position:relative;
 }
-.end-title.victory{color:#fff;text-shadow:0 0 20px var(--cyan),0 0 50px var(--cyan)}
-.end-title.defeat{color:#ff4d6d;text-shadow:0 0 20px #ff4d6d,0 0 50px #ff4d6d}
-
-.end-score{
-  font-family:'Orbitron',sans-serif;font-size:clamp(3rem,8vw,5rem);font-weight:900;
-  color:var(--gold);text-shadow:0 0 30px var(--gold),0 0 60px rgba(255,215,64,0.4);
-  line-height:1;
+.report-header::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(to right,transparent,var(--accent),transparent);opacity:0.4;
 }
-.end-score-label{font-size:0.7rem;letter-spacing:4px;color:var(--cyan);opacity:0.7;margin-top:-8px}
-
-.end-divider{width:100%;height:1px;background:linear-gradient(to right,transparent,var(--cyan),transparent);opacity:0.4}
-
-.end-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%}
-.end-stat{
-  background:rgba(0,229,255,0.04);border:1px solid var(--border);border-radius:10px;
-  padding:12px;text-align:center;
+.report-classification{
+  font-size:0.58rem;letter-spacing:4px;text-transform:uppercase;
+  color:var(--accent);opacity:0.6;margin-bottom:6px;
 }
-.end-stat-label{font-size:0.6rem;letter-spacing:3px;color:var(--cyan);opacity:0.6;margin-bottom:4px}
-.end-stat-value{font-family:'Orbitron',sans-serif;font-size:1.2rem;color:#fff;text-shadow:0 0 10px var(--cyan)}
-
-.end-grade{
-  font-family:'Orbitron',sans-serif;font-size:3.5rem;font-weight:900;
-  width:80px;height:80px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  border:3px solid;
+.report-title{
+  font-family:'Rajdhani',sans-serif;font-size:1.5rem;font-weight:700;
+  letter-spacing:3px;text-transform:uppercase;color:var(--text-hi);
+}
+.report-title.success{color:#78b48a}
+.report-title.failure{color:var(--red-bright)}
+.report-subtitle{
+  font-size:0.65rem;letter-spacing:1px;color:var(--text);margin-top:2px;
 }
 
-.end-buttons{display:flex;gap:14px;margin-top:8px;flex-wrap:wrap;justify-content:center}
-.end-btn{
-  font-family:'Orbitron',sans-serif;font-size:0.8rem;font-weight:700;letter-spacing:3px;
-  padding:14px 28px;border-radius:10px;cursor:pointer;text-transform:uppercase;
-  border:none;transition:all 0.2s;
+.report-score-row{
+  padding:16px 24px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(to right,var(--surf1),var(--surf2));
 }
-.end-btn.primary{
-  background:var(--cyan);color:#000;
-  box-shadow:0 0 20px rgba(0,229,255,0.4);
+.report-score-num{
+  font-family:'Rajdhani',sans-serif;font-size:3.2rem;font-weight:700;
+  color:var(--text-hi);letter-spacing:2px;line-height:1;
 }
-.end-btn.primary:hover{background:#fff;box-shadow:0 0 40px rgba(0,229,255,0.8)}
-.end-btn.secondary{
-  background:rgba(255,255,255,0.06);color:var(--text);border:1px solid var(--border);
+.report-score-label{font-size:0.6rem;letter-spacing:3px;color:var(--text);text-transform:uppercase;margin-top:2px}
+.report-grade{
+  font-family:'Rajdhani',sans-serif;font-size:2.8rem;font-weight:700;
+  width:68px;height:68px;display:flex;align-items:center;justify-content:center;
+  border:1px solid;border-radius:4px;letter-spacing:2px;
 }
-.end-btn.secondary:hover{background:rgba(0,229,255,0.1);border-color:var(--cyan)}
+.report-hs-badge{
+  font-size:0.6rem;letter-spacing:2px;color:var(--gold);
+  padding:4px 12px;border:1px solid var(--gold);border-radius:3px;
+  background:var(--gold-dim);text-transform:uppercase;
+  animation:hsBlink 1s ease-in-out infinite alternate;
+  display:none;
+}
+@keyframes hsBlink{from{opacity:0.7}to{opacity:1}}
 
-/* new highscore badge */
-.hs-badge{
-  font-size:0.7rem;letter-spacing:3px;color:var(--gold);
-  padding:6px 16px;border:1px solid var(--gold);border-radius:20px;
-  background:rgba(255,215,64,0.08);text-transform:uppercase;
-  animation:hsBlink 0.8s ease-in-out infinite alternate;
+.report-stats{
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  border-bottom:1px solid var(--border);
 }
-@keyframes hsBlink{from{box-shadow:0 0 8px var(--gold)}to{box-shadow:0 0 24px var(--gold),0 0 40px rgba(255,215,64,0.3)}}
+.report-stat{
+  padding:12px 18px;border-right:1px solid var(--border);
+}
+.report-stat:last-child{border-right:none}
+.report-stat-label{font-size:0.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--text);opacity:0.55;margin-bottom:3px}
+.report-stat-value{
+  font-family:'Rajdhani',sans-serif;font-size:1.3rem;font-weight:600;
+  color:var(--text-hi);letter-spacing:1px;
+}
+
+.report-divider{
+  margin:0;height:1px;
+  background:linear-gradient(to right,transparent,var(--border-hi),transparent);
+}
+
+.report-actions{
+  padding:14px 24px;display:flex;gap:10px;justify-content:flex-end;
+  background:var(--surf2);
+}
+.report-btn{
+  font-family:'Rajdhani',sans-serif;font-size:0.75rem;font-weight:600;
+  letter-spacing:2.5px;text-transform:uppercase;
+  padding:10px 20px;border-radius:3px;cursor:pointer;
+  border:none;transition:all 0.15s;
+}
+.report-btn.primary{
+  background:var(--accent);color:var(--bg);
+  box-shadow:0 0 12px rgba(58,138,180,0.25);
+}
+.report-btn.primary:hover{background:#4a9dc8;box-shadow:0 0 20px rgba(58,138,180,0.45)}
+.report-btn.secondary{
+  background:var(--surf3);color:var(--text);border:1px solid var(--border);
+}
+.report-btn.secondary:hover{border-color:var(--accent);color:var(--text-bright)}
 </style>
 </head>
 <body>
@@ -305,611 +423,786 @@ canvas#bg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
 
 <div id="wrap">
   <!-- LEFT PANEL -->
-  <div class="sidebar-left">
-    <div class="sidebar-title">Mission Control</div>
+  <div class="sidebar-left panel">
+    <div class="panel-header">
+      <div class="panel-header-dot"></div>
+      <span class="panel-header-label">Ops Center</span>
+    </div>
+
+    <div style="height:8px"></div>
 
     <div class="stat-block">
-      <span class="stat-label">Score</span>
-      <span class="stat-value" id="scoreEl">0</span>
+      <div class="stat-label">Score</div>
+      <div class="stat-value accent" id="scoreEl">0</div>
     </div>
 
     <div class="stat-block">
-      <span class="stat-label">Time Remaining</span>
-      <span class="stat-value red" id="timeEl">60</span>
+      <div class="stat-label">Time Remaining</div>
+      <div class="stat-value red" id="timeEl">60</div>
       <div id="timerBar"><div id="timerFill"></div></div>
     </div>
 
     <div class="stat-block">
-      <span class="stat-label">Hits</span>
-      <span class="stat-value" id="hitsEl">0</span>
+      <div class="stat-label">Confirmed Kills</div>
+      <div class="stat-value" id="hitsEl">0</div>
     </div>
 
-    <div class="combo-display">
-      <div class="combo-label">Combo</div>
-      <div class="combo-value" id="comboEl">x1</div>
+    <div class="combo-block">
+      <div class="combo-label">Multiplier</div>
+      <div class="combo-value" id="comboEl">×1</div>
     </div>
 
     <div class="stat-block">
-      <span class="stat-label">High Score</span>
-      <span class="stat-value gold" id="hsEl">000000</span>
+      <div class="stat-label">High Score</div>
+      <div class="stat-value gold" id="hsEl">000000</div>
     </div>
 
-    <button id="startBtn">▶ Start</button>
+    <button id="startBtn">▶ Deploy</button>
   </div>
 
   <!-- GAME GRID -->
   <div id="game"></div>
 
   <!-- RIGHT PANEL -->
-  <div class="sidebar-right">
-    <div class="feed-header">
-      <div class="feed-dot"></div>
-      Combat Log
-      <div class="feed-dot"></div>
+  <div class="sidebar-right panel">
+    <div class="panel-header">
+      <div class="panel-header-dot green"></div>
+      <span class="panel-header-label">Sitrep</span>
     </div>
     <div id="feed"></div>
 
-    <div class="enemy-legend">
-      <div class="legend-title">Enemy Roster</div>
-
+    <div class="roster-section">
+      <div class="roster-label">Threat Roster</div>
       <div class="legend-row">
         <div class="legend-icon" id="li-trooper"></div>
         <div class="legend-info">
           <div class="legend-name">Stormtrooper</div>
-          <div class="legend-pts">+10 pts</div>
+          <div class="legend-pts">+10 PTS</div>
         </div>
       </div>
       <div class="legend-row">
         <div class="legend-icon" id="li-clone"></div>
         <div class="legend-info">
           <div class="legend-name">Clone Trooper</div>
-          <div class="legend-pts">+10 pts</div>
+          <div class="legend-pts">+10 PTS</div>
         </div>
       </div>
       <div class="legend-row">
         <div class="legend-icon" id="li-xenomorph"></div>
         <div class="legend-info">
           <div class="legend-name">Xenomorph</div>
-          <div class="legend-pts">+20 pts</div>
+          <div class="legend-pts">+20 PTS</div>
         </div>
       </div>
       <div class="legend-row">
         <div class="legend-icon" id="li-r2d2"></div>
         <div class="legend-info">
           <div class="legend-name">R2-D2</div>
-          <div class="legend-pts">+20 pts</div>
+          <div class="legend-pts">+20 PTS</div>
         </div>
       </div>
       <div class="legend-row">
         <div class="legend-icon" id="li-yoda"></div>
         <div class="legend-info">
           <div class="legend-name">Yoda</div>
-          <div class="legend-pts">+30 pts</div>
+          <div class="legend-pts">+30 PTS</div>
         </div>
       </div>
       <div class="legend-row">
         <div class="legend-icon" id="li-boba"></div>
         <div class="legend-info">
           <div class="legend-name">Boba Fett</div>
-          <div class="legend-pts">+30 pts</div>
+          <div class="legend-pts">+30 PTS</div>
         </div>
       </div>
       <div class="legend-row">
         <div class="legend-icon" id="li-predator"></div>
         <div class="legend-info">
           <div class="legend-name">Predator</div>
-          <div class="legend-pts">+40 pts</div>
+          <div class="legend-pts">+40 PTS</div>
         </div>
       </div>
       <div class="legend-row">
         <div class="legend-icon" id="li-vader"></div>
         <div class="legend-info">
           <div class="legend-name">Darth Vader</div>
-          <div class="legend-pts" style="color:#ff4d6d;text-shadow:0 0 8px #ff4d6d">+50 pts ★</div>
+          <div class="legend-pts" style="color:var(--red-bright)">+50 PTS ★</div>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- END SCREEN -->
+<!-- END SCREEN — After Action Report -->
 <div id="endScreen">
-  <div class="end-card">
-    <div class="end-title" id="endTitle">MISSION COMPLETE</div>
-    <div class="end-score" id="endScore">0</div>
-    <div class="end-score-label">FINAL SCORE</div>
-    <div id="hsBadge" class="hs-badge" style="display:none">★ NEW HIGH SCORE ★</div>
-    <div class="end-divider"></div>
-    <div class="end-stats">
-      <div class="end-stat"><div class="end-stat-label">Hits</div><div class="end-stat-value" id="endHits">0</div></div>
-      <div class="end-stat"><div class="end-stat-label">Best Combo</div><div class="end-stat-value" id="endCombo">x1</div></div>
-      <div class="end-stat"><div class="end-stat-label">Accuracy</div><div class="end-stat-value" id="endAcc">0%</div></div>
-      <div class="end-stat"><div class="end-stat-label">Grade</div><div class="end-stat-value" id="endGrade">—</div></div>
+  <div class="report-card">
+    <div class="report-header">
+      <div class="report-classification">After Action Report — Classified</div>
+      <div class="report-title" id="endTitle">Mission Complete</div>
+      <div class="report-subtitle" id="endSubtitle">Operation debriefing summary</div>
     </div>
-    <div class="end-buttons">
-      <button class="end-btn primary" onclick="restartGame()">↺ Play Again</button>
-      <button class="end-btn secondary" onclick="window.location.href='index.html'">← Lobby</button>
+
+    <div class="report-score-row">
+      <div>
+        <div class="report-score-num" id="endScore">0</div>
+        <div class="report-score-label">Total Score</div>
+        <div id="hsBadge" class="report-hs-badge" style="margin-top:6px">★ New Record</div>
+      </div>
+      <div class="report-grade" id="endGrade">—</div>
+    </div>
+
+    <div class="report-stats">
+      <div class="report-stat">
+        <div class="report-stat-label">KIA</div>
+        <div class="report-stat-value" id="endHits">0</div>
+      </div>
+      <div class="report-stat">
+        <div class="report-stat-label">Accuracy</div>
+        <div class="report-stat-value" id="endAcc">0%</div>
+      </div>
+      <div class="report-stat">
+        <div class="report-stat-label">Peak Mult.</div>
+        <div class="report-stat-value" id="endCombo">×1</div>
+      </div>
+    </div>
+
+    <div class="report-actions">
+      <button class="report-btn secondary" onclick="window.location.href='index.html'">← Lobby</button>
+      <button class="report-btn primary" onclick="restartGame()">↺ Redeploy</button>
     </div>
   </div>
 </div>
 
 <script>
-// ─── SVG LIBRARY ─────────────────────────────────────────────────────────────
+// ─── SVG LIBRARY — Realistic tactical renders ────────────────────────────────
 const SVGS = {
   trooper: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="tg1" cx="35%" cy="30%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#bbb"/></radialGradient>
-    <radialGradient id="tg2" cx="35%" cy="30%"><stop offset="0%" stop-color="#ddd"/><stop offset="100%" stop-color="#999"/></radialGradient>
-    <filter id="tf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity="0.6"/></filter>
+    <radialGradient id="tHelm" cx="38%" cy="28%" r="60%">
+      <stop offset="0%" stop-color="#e8e8e8"/>
+      <stop offset="55%" stop-color="#c0c0c0"/>
+      <stop offset="100%" stop-color="#888"/>
+    </radialGradient>
+    <radialGradient id="tBody" cx="40%" cy="25%" r="65%">
+      <stop offset="0%" stop-color="#d8d8d8"/>
+      <stop offset="60%" stop-color="#b0b0b0"/>
+      <stop offset="100%" stop-color="#787878"/>
+    </radialGradient>
+    <linearGradient id="tShad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#aaa"/>
+      <stop offset="100%" stop-color="#666"/>
+    </linearGradient>
+    <filter id="tf" x="-15%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#000" flood-opacity="0.75"/>
+    </filter>
   </defs>
   <g filter="url(#tf)">
-  <!-- Body -->
-  <ellipse cx="50" cy="80" rx="30" ry="28" fill="url(#tg2)" stroke="#888" stroke-width="1"/>
-  <!-- Chest plate lines -->
-  <path d="M30 68 Q50 64 70 68 L68 82 Q50 86 32 82 Z" fill="#ccc" stroke="#aaa" stroke-width="0.5"/>
-  <line x1="50" y1="66" x2="50" y2="84" stroke="#999" stroke-width="0.8"/>
-  <line x1="35" y1="74" x2="65" y2="74" stroke="#aaa" stroke-width="0.8"/>
-  <!-- Neck -->
-  <rect x="44" y="42" width="12" height="10" rx="3" fill="#ccc" stroke="#aaa"/>
-  <!-- Helmet -->
-  <ellipse cx="50" cy="34" rx="26" ry="26" fill="url(#tg1)" stroke="#ccc" stroke-width="1.5"/>
-  <!-- Helmet top ridge -->
-  <path d="M24 34 Q50 8 76 34" fill="none" stroke="#ddd" stroke-width="2"/>
-  <!-- Visor band -->
-  <rect x="24" y="32" width="52" height="12" rx="3" fill="#111" stroke="#333"/>
-  <!-- Visor T-bar -->
-  <rect x="46" y="32" width="8" height="12" rx="1" fill="#0a0a0a"/>
-  <!-- Eye lenses -->
-  <ellipse cx="36" cy="38" rx="8" ry="5" fill="#222"/>
-  <ellipse cx="64" cy="38" rx="8" ry="5" fill="#222"/>
-  <ellipse cx="36" cy="38" rx="5" ry="3" fill="#333" opacity="0.8"/>
-  <ellipse cx="64" cy="38" rx="5" ry="3" fill="#333" opacity="0.8"/>
-  <!-- Highlight on visor -->
-  <ellipse cx="33" cy="36" rx="2" ry="1.5" fill="#fff" opacity="0.3"/>
-  <ellipse cx="61" cy="36" rx="2" ry="1.5" fill="#fff" opacity="0.3"/>
-  <!-- Chin vent -->
-  <path d="M38 44 Q50 48 62 44" fill="none" stroke="#aaa" stroke-width="1"/>
-  <!-- Legs -->
-  <rect x="32" y="104" width="15" height="14" rx="4" fill="#bbb" stroke="#999"/>
-  <rect x="53" y="104" width="15" height="14" rx="4" fill="#bbb" stroke="#999"/>
-  <!-- Knee pads -->
-  <ellipse cx="39" cy="106" rx="7" ry="4" fill="#ccc"/>
-  <ellipse cx="60" cy="106" rx="7" ry="4" fill="#ccc"/>
+    <!-- Body armor torso -->
+    <ellipse cx="50" cy="82" rx="28" ry="26" fill="url(#tBody)"/>
+    <!-- Chest plate raised panel -->
+    <path d="M29 70 Q50 65 71 70 L69 84 Q50 89 31 84 Z" fill="#ccc" stroke="#aaa" stroke-width="0.6"/>
+    <line x1="50" y1="66" x2="50" y2="87" stroke="#999" stroke-width="0.7"/>
+    <line x1="34" y1="75" x2="66" y2="75" stroke="#bbb" stroke-width="0.7"/>
+    <!-- Abdomen segments -->
+    <path d="M35 88 Q50 92 65 88 L64 96 Q50 100 36 96 Z" fill="#bbb" stroke="#999" stroke-width="0.5"/>
+    <!-- Neck -->
+    <rect x="44" y="43" width="12" height="9" rx="3" fill="#ccc" stroke="#aaa" stroke-width="0.8"/>
+    <!-- Helmet dome -->
+    <ellipse cx="50" cy="33" rx="25" ry="25" fill="url(#tHelm)" stroke="#ddd" stroke-width="1"/>
+    <!-- Helmet top ridge line -->
+    <path d="M25 33 Q50 7 75 33" fill="none" stroke="#ddd" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- Faceplate seam vertical -->
+    <line x1="50" y1="14" x2="50" y2="52" stroke="#aaa" stroke-width="1"/>
+    <!-- Visor band -->
+    <rect x="25" y="31" width="50" height="11" rx="2.5" fill="#111"/>
+    <rect x="45" y="31" width="10" height="11" rx="1.5" fill="#0a0a0a"/>
+    <!-- Eye lenses subtle gloss -->
+    <ellipse cx="35.5" cy="36.5" rx="8" ry="5" fill="#1a1a1a"/>
+    <ellipse cx="64.5" cy="36.5" rx="8" ry="5" fill="#1a1a1a"/>
+    <ellipse cx="33" cy="35" rx="2" ry="1.2" fill="#fff" opacity="0.18"/>
+    <ellipse cx="62" cy="35" rx="2" ry="1.2" fill="#fff" opacity="0.18"/>
+    <!-- Cheek vents -->
+    <line x1="28" y1="43" x2="34" y2="43" stroke="#999" stroke-width="1"/>
+    <line x1="66" y1="43" x2="72" y2="43" stroke="#999" stroke-width="1"/>
+    <!-- Chin trapezoid -->
+    <path d="M38 43 Q50 47 62 43 L60 52 Q50 55 40 52 Z" fill="#b8b8b8" stroke="#aaa" stroke-width="0.5"/>
+    <!-- Legs -->
+    <rect x="31" y="104" width="15" height="13" rx="3.5" fill="url(#tShad)" stroke="#999"/>
+    <rect x="54" y="104" width="15" height="13" rx="3.5" fill="url(#tShad)" stroke="#999"/>
+    <ellipse cx="38.5" cy="105" rx="6.5" ry="3" fill="#ccc"/>
+    <ellipse cx="61.5" cy="105" rx="6.5" ry="3" fill="#ccc"/>
   </g></svg>`,
 
   clone: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="cg1" cx="35%" cy="25%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#d0e8ff"/></radialGradient>
-    <radialGradient id="cg2" cx="35%" cy="30%"><stop offset="0%" stop-color="#e0f0ff"/><stop offset="100%" stop-color="#a0c8e8"/></radialGradient>
-    <filter id="cf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity="0.6"/></filter>
+    <radialGradient id="cHelm" cx="38%" cy="28%" r="60%">
+      <stop offset="0%" stop-color="#f0f4ff"/>
+      <stop offset="55%" stop-color="#ccd8f0"/>
+      <stop offset="100%" stop-color="#8898c0"/>
+    </radialGradient>
+    <radialGradient id="cBody" cx="40%" cy="25%" r="65%">
+      <stop offset="0%" stop-color="#dce8ff"/>
+      <stop offset="60%" stop-color="#aabcd8"/>
+      <stop offset="100%" stop-color="#6880a8"/>
+    </radialGradient>
+    <filter id="cf" x="-15%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#000" flood-opacity="0.7"/>
+    </filter>
   </defs>
   <g filter="url(#cf)">
-  <ellipse cx="50" cy="80" rx="30" ry="28" fill="url(#cg2)" stroke="#88aacc" stroke-width="1"/>
-  <path d="M30 68 Q50 64 70 68 L68 82 Q50 86 32 82 Z" fill="#cce4ff" stroke="#99bbdd" stroke-width="0.5"/>
-  <!-- Blue legion stripe -->
-  <path d="M30 68 Q50 63 70 68 L70 72 Q50 68 30 72 Z" fill="#0066cc" opacity="0.8"/>
-  <line x1="50" y1="66" x2="50" y2="84" stroke="#88aacc" stroke-width="0.8"/>
-  <rect x="44" y="42" width="12" height="10" rx="3" fill="#d0e8ff" stroke="#88aacc"/>
-  <ellipse cx="50" cy="34" rx="26" ry="26" fill="url(#cg1)" stroke="#bbddff" stroke-width="1.5"/>
-  <path d="M24 34 Q50 8 76 34" fill="none" stroke="#ddeeff" stroke-width="2"/>
-  <!-- T-visor -->
-  <rect x="24" y="30" width="52" height="14" rx="3" fill="#111" stroke="#333"/>
-  <rect x="44" y="30" width="12" height="14" rx="2" fill="#080808"/>
-  <ellipse cx="36" cy="37" rx="8" ry="5" fill="#1a3a5a"/>
-  <ellipse cx="64" cy="37" rx="8" ry="5" fill="#1a3a5a"/>
-  <ellipse cx="34" cy="35" rx="2" ry="1.5" fill="#4488ff" opacity="0.6"/>
-  <ellipse cx="62" cy="35" rx="2" ry="1.5" fill="#4488ff" opacity="0.6"/>
-  <!-- Blue chin stripe -->
-  <rect x="38" y="44" width="24" height="4" rx="2" fill="#0044aa" opacity="0.9"/>
-  <rect x="32" y="104" width="15" height="14" rx="4" fill="#d0e8ff" stroke="#88aacc"/>
-  <rect x="53" y="104" width="15" height="14" rx="4" fill="#d0e8ff" stroke="#88aacc"/>
-  <rect x="34" y="96" width="11" height="8" rx="2" fill="#0044aa" opacity="0.7"/>
-  <rect x="55" y="96" width="11" height="8" rx="2" fill="#0044aa" opacity="0.7"/>
+    <ellipse cx="50" cy="82" rx="28" ry="26" fill="url(#cBody)"/>
+    <path d="M29 70 Q50 65 71 70 L69 84 Q50 89 31 84 Z" fill="#cce0ff" stroke="#99b8dd" stroke-width="0.6"/>
+    <!-- Phase II blue stripe -->
+    <path d="M29 70 Q50 64 71 70 L71 74 Q50 69 29 74 Z" fill="#1155cc" opacity="0.85"/>
+    <line x1="50" y1="66" x2="50" y2="87" stroke="#88aacc" stroke-width="0.7"/>
+    <line x1="34" y1="75" x2="66" y2="75" stroke="#aabcdd" stroke-width="0.7"/>
+    <path d="M35 88 Q50 92 65 88 L64 96 Q50 100 36 96 Z" fill="#b8ccee" stroke="#88aacc" stroke-width="0.5"/>
+    <rect x="44" y="43" width="12" height="9" rx="3" fill="#ccd8f4" stroke="#88aacc" stroke-width="0.8"/>
+    <ellipse cx="50" cy="33" rx="25" ry="25" fill="url(#cHelm)" stroke="#bbd4ff" stroke-width="1"/>
+    <path d="M25 33 Q50 7 75 33" fill="none" stroke="#ddeeff" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="50" y1="14" x2="50" y2="52" stroke="#99b8dd" stroke-width="1"/>
+    <!-- Phase II T-visor narrower -->
+    <rect x="26" y="29" width="48" height="13" rx="2.5" fill="#111"/>
+    <rect x="45" y="29" width="10" height="13" rx="1.5" fill="#080808"/>
+    <ellipse cx="35.5" cy="35" rx="7.5" ry="5" fill="#112244"/>
+    <ellipse cx="64.5" cy="35" rx="7.5" ry="5" fill="#112244"/>
+    <ellipse cx="33" cy="33.5" rx="2" ry="1.2" fill="#4488ff" opacity="0.35"/>
+    <ellipse cx="62" cy="33.5" rx="2" ry="1.2" fill="#4488ff" opacity="0.35"/>
+    <!-- Blue chin stripe -->
+    <path d="M38 43 Q50 47 62 43 L60 52 Q50 55 40 52 Z" fill="#b8ccee" stroke="#88aacc" stroke-width="0.5"/>
+    <rect x="40" y="45" width="20" height="3" rx="1.5" fill="#1155cc" opacity="0.8"/>
+    <rect x="31" y="104" width="15" height="13" rx="3.5" fill="#aac4e8" stroke="#88aacc"/>
+    <rect x="54" y="104" width="15" height="13" rx="3.5" fill="#aac4e8" stroke="#88aacc"/>
+    <rect x="33" y="96" width="11" height="9" rx="2" fill="#1144aa" opacity="0.7"/>
+    <rect x="56" y="96" width="11" height="9" rx="2" fill="#1144aa" opacity="0.7"/>
   </g></svg>`,
 
   xenomorph: `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="xg1" cx="40%" cy="30%"><stop offset="0%" stop-color="#1a2e1a"/><stop offset="100%" stop-color="#050f05"/></radialGradient>
-    <filter id="xf"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#003300" flood-opacity="0.5"/></filter>
-    <linearGradient id="xridge" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#2a4a2a"/><stop offset="100%" stop-color="#050d05"/></linearGradient>
+    <radialGradient id="xHead" cx="40%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#1e2e18"/>
+      <stop offset="50%" stop-color="#0c1a0a"/>
+      <stop offset="100%" stop-color="#040906"/>
+    </radialGradient>
+    <linearGradient id="xRidge" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2e4828"/>
+      <stop offset="100%" stop-color="#060e04"/>
+    </linearGradient>
+    <filter id="xf" x="-20%" y="-10%" width="140%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#002200" flood-opacity="0.6"/>
+    </filter>
   </defs>
   <g filter="url(#xf)">
-  <!-- Elongated head -->
-  <path d="M32 50 Q28 20 50 8 Q72 20 68 50 Q75 75 70 90 Q55 100 45 100 Q30 95 25 75 Z" fill="url(#xg1)" stroke="#1a3a1a" stroke-width="1.5"/>
-  <!-- Head ridge -->
-  <path d="M50 8 L50 55" stroke="url(#xridge)" stroke-width="5" stroke-linecap="round"/>
-  <!-- Side ridges -->
-  <path d="M50 8 Q38 22 32 42" fill="none" stroke="#1a3a1a" stroke-width="2"/>
-  <path d="M50 8 Q62 22 68 42" fill="none" stroke="#1a3a1a" stroke-width="2"/>
-  <!-- Eyes (glowing) -->
-  <ellipse cx="38" cy="55" rx="9" ry="7" fill="#0a1a0a"/>
-  <ellipse cx="38" cy="55" rx="6" ry="5" fill="#0e2a0e"/>
-  <ellipse cx="38" cy="54" rx="3.5" ry="3" fill="#44ff44" opacity="0.5"/>
-  <ellipse cx="37" cy="53" rx="1.5" ry="1.5" fill="#aaffaa" opacity="0.7"/>
-  <ellipse cx="62" cy="55" rx="9" ry="7" fill="#0a1a0a"/>
-  <ellipse cx="62" cy="55" rx="6" ry="5" fill="#0e2a0e"/>
-  <ellipse cx="62" cy="54" rx="3.5" ry="3" fill="#44ff44" opacity="0.5"/>
-  <ellipse cx="61" cy="53" rx="1.5" ry="1.5" fill="#aaffaa" opacity="0.7"/>
-  <!-- Inner jaw teeth -->
-  <path d="M38 76 Q50 82 62 76" fill="none" stroke="#2a5a2a" stroke-width="1.5"/>
-  <line x1="42" y1="77" x2="41" y2="84" stroke="#1a4a1a" stroke-width="1.5"/>
-  <line x1="50" y1="78" x2="50" y2="86" stroke="#1a4a1a" stroke-width="2"/>
-  <line x1="58" y1="77" x2="59" y2="84" stroke="#1a4a1a" stroke-width="1.5"/>
-  <!-- Body -->
-  <path d="M30 98 Q24 118 28 126 Q50 132 72 126 Q76 118 70 98 Q55 106 45 106 Z" fill="#0a180a" stroke="#1a3a1a"/>
-  <!-- Rib segmentation -->
-  <path d="M34 104 Q50 100 66 104" fill="none" stroke="#1a3a1a" stroke-width="1"/>
-  <path d="M32 112 Q50 107 68 112" fill="none" stroke="#1a3a1a" stroke-width="1"/>
-  <path d="M34 120 Q50 116 66 120" fill="none" stroke="#1a3a1a" stroke-width="1"/>
+    <!-- Elongated biomechanical skull -->
+    <path d="M34 52 Q30 22 50 8 Q70 22 66 52 Q73 76 68 92 Q56 102 44 102 Q28 96 27 76 Z" fill="url(#xHead)" stroke="#1a3018" stroke-width="1.5"/>
+    <!-- Dorsal crest / cranial ridge -->
+    <path d="M50 8 L50 58" stroke="url(#xRidge)" stroke-width="6" stroke-linecap="round" opacity="0.9"/>
+    <!-- Sub-ridges -->
+    <path d="M50 10 Q37 24 33 46" fill="none" stroke="#1a3018" stroke-width="2"/>
+    <path d="M50 10 Q63 24 67 46" fill="none" stroke="#1a3018" stroke-width="2"/>
+    <!-- Secondary ridges -->
+    <path d="M50 14 Q40 26 36 44" fill="none" stroke="#162812" stroke-width="1"/>
+    <path d="M50 14 Q60 26 64 44" fill="none" stroke="#162812" stroke-width="1"/>
+    <!-- Eyes — deep set, glowing green -->
+    <ellipse cx="38" cy="56" rx="8.5" ry="6.5" fill="#081208"/>
+    <ellipse cx="38" cy="56" rx="6" ry="4.5" fill="#0c1e0c"/>
+    <ellipse cx="38" cy="55" rx="3.5" ry="3" fill="#22aa22" opacity="0.55"/>
+    <ellipse cx="37" cy="54" rx="1.5" ry="1.5" fill="#88ff88" opacity="0.75"/>
+    <ellipse cx="62" cy="56" rx="8.5" ry="6.5" fill="#081208"/>
+    <ellipse cx="62" cy="56" rx="6" ry="4.5" fill="#0c1e0c"/>
+    <ellipse cx="62" cy="55" rx="3.5" ry="3" fill="#22aa22" opacity="0.55"/>
+    <ellipse cx="61" cy="54" rx="1.5" ry="1.5" fill="#88ff88" opacity="0.75"/>
+    <!-- Biomechanical jaw ridges -->
+    <path d="M36 77 Q50 84 64 77" fill="none" stroke="#2a4a22" stroke-width="2"/>
+    <!-- Dagger teeth -->
+    <line x1="40" y1="78" x2="39" y2="86" stroke="#1a3a14" stroke-width="1.5"/>
+    <line x1="47" y1="80" x2="46" y2="89" stroke="#1a3a14" stroke-width="1.5"/>
+    <line x1="50" y1="80" x2="50" y2="90" stroke="#1a3a14" stroke-width="2"/>
+    <line x1="53" y1="80" x2="54" y2="89" stroke="#1a3a14" stroke-width="1.5"/>
+    <line x1="60" y1="78" x2="61" y2="86" stroke="#1a3a14" stroke-width="1.5"/>
+    <!-- Neck tendons -->
+    <line x1="42" y1="100" x2="40" y2="114" stroke="#1a2e14" stroke-width="2"/>
+    <line x1="58" y1="100" x2="60" y2="114" stroke="#1a2e14" stroke-width="2"/>
+    <!-- Body carapace -->
+    <path d="M32 100 Q26 120 30 128 Q50 134 70 128 Q74 120 68 100 Q56 108 44 108 Z" fill="#0a1608" stroke="#1a2e14"/>
+    <!-- Rib segmentation -->
+    <path d="M36 106 Q50 102 64 106" fill="none" stroke="#182810" stroke-width="1"/>
+    <path d="M34 114 Q50 110 66 114" fill="none" stroke="#182810" stroke-width="1"/>
+    <path d="M35 122 Q50 118 65 122" fill="none" stroke="#182810" stroke-width="1"/>
   </g></svg>`,
 
   r2d2: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="rg1" cx="35%" cy="25%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#c8d8f0"/></radialGradient>
-    <radialGradient id="rg2" cx="30%" cy="30%"><stop offset="0%" stop-color="#3355bb"/><stop offset="100%" stop-color="#1122aa"/></radialGradient>
-    <radialGradient id="rg3" cx="30%" cy="25%"><stop offset="0%" stop-color="#88aaff"/><stop offset="100%" stop-color="#2244cc"/></radialGradient>
-    <filter id="rf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000055" flood-opacity="0.5"/></filter>
+    <radialGradient id="rDome" cx="36%" cy="26%" r="62%">
+      <stop offset="0%" stop-color="#f4f4ff"/>
+      <stop offset="50%" stop-color="#d4d8f0"/>
+      <stop offset="100%" stop-color="#a0a8c8"/>
+    </radialGradient>
+    <radialGradient id="rBlue" cx="35%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#4466cc"/>
+      <stop offset="100%" stop-color="#1a3388"/>
+    </radialGradient>
+    <radialGradient id="rEye" cx="30%" cy="28%" r="55%">
+      <stop offset="0%" stop-color="#88aaff"/>
+      <stop offset="100%" stop-color="#2244bb"/>
+    </radialGradient>
+    <filter id="rf" x="-15%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#000044" flood-opacity="0.6"/>
+    </filter>
   </defs>
   <g filter="url(#rf)">
-  <!-- Dome head -->
-  <ellipse cx="50" cy="30" rx="28" ry="26" fill="url(#rg1)" stroke="#aabbdd" stroke-width="1.5"/>
-  <!-- Blue head stripe -->
-  <path d="M23 30 Q50 5 77 30 L77 36 Q50 12 23 36 Z" fill="url(#rg2)" opacity="0.9"/>
-  <!-- Main eye lens -->
-  <circle cx="50" cy="38" r="11" fill="#1a1a2a" stroke="#4488ff" stroke-width="2"/>
-  <circle cx="50" cy="38" r="8" fill="#223388"/>
-  <circle cx="50" cy="38" r="5" fill="url(#rg3)"/>
-  <circle cx="50" cy="38" r="2" fill="#aaccff"/>
-  <circle cx="48" cy="36" r="1" fill="#fff" opacity="0.7"/>
-  <!-- Periscope/sensors -->
-  <circle cx="34" cy="24" r="4" fill="#4488ff" stroke="#aaccff" stroke-width="1"/>
-  <circle cx="34" cy="24" r="2" fill="#88aaff"/>
-  <!-- Body cylinder -->
-  <rect x="20" y="54" width="60" height="50" rx="8" fill="url(#rg1)" stroke="#aabbdd" stroke-width="1.5"/>
-  <!-- Blue body panels -->
-  <rect x="20" y="54" width="60" height="12" rx="4" fill="url(#rg2)" opacity="0.9"/>
-  <!-- Chest panel -->
-  <rect x="28" y="70" width="20" height="16" rx="3" fill="#223388" stroke="#4488ff" stroke-width="1"/>
-  <circle cx="33" cy="76" r="3" fill="#ff4444"/>
-  <circle cx="42" cy="76" r="3" fill="#44ff44"/>
-  <circle cx="33" cy="83" r="2.5" fill="#4444ff"/>
-  <circle cx="42" cy="83" r="2.5" fill="#ffff44"/>
-  <!-- Side panel -->
-  <rect x="52" y="70" width="22" height="16" rx="3" fill="#c8d8ff"/>
-  <line x1="54" y1="75" x2="72" y2="75" stroke="#4488ff" stroke-width="1.5"/>
-  <line x1="54" y1="80" x2="72" y2="80" stroke="#4488ff" stroke-width="1.5"/>
-  <line x1="54" y1="85" x2="72" y2="85" stroke="#4488ff" stroke-width="1"/>
-  <!-- Bottom stripe -->
-  <rect x="20" y="98" width="60" height="6" rx="3" fill="url(#rg2)" opacity="0.8"/>
-  <!-- Feet stumps -->
-  <rect x="28" y="104" width="16" height="10" rx="4" fill="#c8d8ff" stroke="#aabbdd"/>
-  <rect x="56" y="104" width="16" height="10" rx="4" fill="#c8d8ff" stroke="#aabbdd"/>
+    <!-- Head dome — smooth hemisphere -->
+    <ellipse cx="50" cy="29" rx="27" ry="25" fill="url(#rDome)" stroke="#b8c4e8" stroke-width="1.2"/>
+    <!-- Blue dome stripe -->
+    <path d="M24 29 Q50 5 76 29 L76 35 Q50 11 24 35 Z" fill="url(#rBlue)" opacity="0.88"/>
+    <!-- Main optical sensor -->
+    <circle cx="50" cy="37" r="10" fill="#181828" stroke="#4466ff" stroke-width="1.8"/>
+    <circle cx="50" cy="37" r="7.5" fill="#223388"/>
+    <circle cx="50" cy="37" r="4.8" fill="url(#rEye)"/>
+    <circle cx="50" cy="37" r="2" fill="#aaccff"/>
+    <circle cx="48.5" cy="35.5" r="0.9" fill="#fff" opacity="0.75"/>
+    <!-- Holographic emitter / small sensor -->
+    <circle cx="35" cy="24" r="4" fill="#3355bb" stroke="#88aaff" stroke-width="1"/>
+    <circle cx="35" cy="24" r="2" fill="#6688ee"/>
+    <!-- Body cylinder — main fuselage -->
+    <rect x="21" y="53" width="58" height="50" rx="8" fill="url(#rDome)" stroke="#b8c4e8" stroke-width="1.2"/>
+    <!-- Top blue band -->
+    <rect x="21" y="53" width="58" height="11" rx="5" fill="url(#rBlue)" opacity="0.88"/>
+    <!-- Chest utility panel -->
+    <rect x="28" y="68" width="20" height="16" rx="3" fill="#1e2a50" stroke="#3355bb" stroke-width="1"/>
+    <circle cx="33" cy="74" r="2.8" fill="#ff3333"/>
+    <circle cx="42" cy="74" r="2.8" fill="#33cc33"/>
+    <circle cx="33" cy="82" r="2.2" fill="#3333ff"/>
+    <circle cx="42" cy="82" r="2.2" fill="#ffcc00"/>
+    <!-- Side data panel -->
+    <rect x="52" y="68" width="22" height="16" rx="3" fill="#d8e0f8"/>
+    <line x1="54" y1="73" x2="72" y2="73" stroke="#4466cc" stroke-width="1.5"/>
+    <line x1="54" y1="78" x2="72" y2="78" stroke="#4466cc" stroke-width="1.5"/>
+    <line x1="54" y1="83" x2="72" y2="83" stroke="#6688dd" stroke-width="1"/>
+    <!-- Bottom blue trim -->
+    <rect x="21" y="97" width="58" height="6" rx="3" fill="url(#rBlue)" opacity="0.7"/>
+    <!-- Leg stumps -->
+    <rect x="29" y="103" width="16" height="10" rx="4" fill="url(#rDome)" stroke="#b0bcd8"/>
+    <rect x="55" y="103" width="16" height="10" rx="4" fill="url(#rDome)" stroke="#b0bcd8"/>
   </g></svg>`,
 
   yoda: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="yg1" cx="35%" cy="30%"><stop offset="0%" stop-color="#8acc6a"/><stop offset="100%" stop-color="#4a8a2a"/></radialGradient>
-    <radialGradient id="yg2" cx="40%" cy="35%"><stop offset="0%" stop-color="#6aaa4a"/><stop offset="100%" stop-color="#3a7020"/></radialGradient>
-    <filter id="yf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#002200" flood-opacity="0.5"/></filter>
+    <radialGradient id="yHead" cx="38%" cy="30%" r="62%">
+      <stop offset="0%" stop-color="#8aca68"/>
+      <stop offset="55%" stop-color="#5a9a3a"/>
+      <stop offset="100%" stop-color="#386020"/>
+    </radialGradient>
+    <radialGradient id="yEar" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#72b052"/>
+      <stop offset="100%" stop-color="#426820"/>
+    </radialGradient>
+    <filter id="yf" x="-20%" y="-10%" width="140%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#001a00" flood-opacity="0.6"/>
+    </filter>
   </defs>
   <g filter="url(#yf)">
-  <!-- Ears -->
-  <path d="M14 44 Q8 34 10 24 Q14 14 22 20 L28 40 Z" fill="url(#yg2)" stroke="#3a7020" stroke-width="1.5"/>
-  <path d="M86 44 Q92 34 90 24 Q86 14 78 20 L72 40 Z" fill="url(#yg2)" stroke="#3a7020" stroke-width="1.5"/>
-  <!-- Ear inner detail -->
-  <path d="M18 38 Q14 28 17 22" fill="none" stroke="#5a9a3a" stroke-width="1.5"/>
-  <path d="M82 38 Q86 28 83 22" fill="none" stroke="#5a9a3a" stroke-width="1.5"/>
-  <!-- Head -->
-  <ellipse cx="50" cy="40" rx="32" ry="34" fill="url(#yg1)" stroke="#4a8a2a" stroke-width="1.5"/>
-  <!-- Forehead wrinkles -->
-  <path d="M32 28 Q42 24 58 28" fill="none" stroke="#3a7020" stroke-width="1.5"/>
-  <path d="M28 34 Q38 30 62 34" fill="none" stroke="#3a7020" stroke-width="1"/>
-  <!-- Eyes -->
-  <ellipse cx="37" cy="44" rx="10" ry="8" fill="#1a1a0a" stroke="#2a2a0a" stroke-width="1"/>
-  <ellipse cx="63" cy="44" rx="10" ry="8" fill="#1a1a0a" stroke="#2a2a0a" stroke-width="1"/>
-  <ellipse cx="37" cy="44" rx="7" ry="5.5" fill="#3a2a0a"/>
-  <ellipse cx="63" cy="44" rx="7" ry="5.5" fill="#3a2a0a"/>
-  <!-- Iris -->
-  <ellipse cx="36" cy="43" rx="3.5" ry="3.5" fill="#aacc88"/>
-  <ellipse cx="62" cy="43" rx="3.5" ry="3.5" fill="#aacc88"/>
-  <circle cx="35" cy="42" r="1.5" fill="#fff" opacity="0.7"/>
-  <circle cx="61" cy="42" r="1.5" fill="#fff" opacity="0.7"/>
-  <!-- Nose -->
-  <ellipse cx="50" cy="54" rx="4" ry="2.5" fill="#3a7020" opacity="0.7"/>
-  <!-- Smile / wrinkles -->
-  <path d="M38 62 Q50 70 62 62" fill="none" stroke="#3a7020" stroke-width="2"/>
-  <!-- Beard hints -->
-  <path d="M38 66 Q34 72 36 78 M50 68 L50 76 M62 66 Q66 72 64 78" fill="none" stroke="#8acc6a" stroke-width="1.5"/>
-  <!-- Robe body -->
-  <path d="M20 70 Q26 64 50 62 Q74 64 80 70 L84 118 Q50 124 16 118 Z" fill="#4a3a2a" stroke="#3a2a1a" stroke-width="1"/>
-  <!-- Robe details -->
-  <path d="M24 78 Q50 74 76 78" fill="none" stroke="#5a4a3a" stroke-width="1"/>
-  <path d="M22 90 Q50 86 78 90" fill="none" stroke="#5a4a3a" stroke-width="1"/>
-  <path d="M22 104 Q50 100 78 104" fill="none" stroke="#5a4a3a" stroke-width="1"/>
-  <!-- Cane -->
-  <line x1="74" y1="80" x2="78" y2="120" stroke="#5a4a2a" stroke-width="3" stroke-linecap="round"/>
-  <ellipse cx="73" cy="80" rx="5" ry="3" fill="#6a5a3a"/>
+    <!-- Large ears with cartilage structure -->
+    <path d="M14 46 Q6 34 9 22 Q13 12 22 18 L28 38 Z" fill="url(#yEar)" stroke="#426820" stroke-width="1.5"/>
+    <path d="M86 46 Q94 34 91 22 Q87 12 78 18 L72 38 Z" fill="url(#yEar)" stroke="#426820" stroke-width="1.5"/>
+    <!-- Ear inner ridges -->
+    <path d="M18 40 Q13 28 16 20" fill="none" stroke="#6aaa48" stroke-width="1.5"/>
+    <path d="M82 40 Q87 28 84 20" fill="none" stroke="#6aaa48" stroke-width="1.5"/>
+    <path d="M20 42 Q15 30 18 22" fill="none" stroke="#5a9a38" stroke-width="0.8"/>
+    <!-- Head -->
+    <ellipse cx="50" cy="40" rx="32" ry="33" fill="url(#yHead)" stroke="#4a8a28" stroke-width="1.5"/>
+    <!-- Age lines / forehead wrinkles -->
+    <path d="M30 27 Q42 22 58 27" fill="none" stroke="#3a7018" stroke-width="1.5"/>
+    <path d="M26 33 Q38 28 62 33" fill="none" stroke="#3a7018" stroke-width="1.2"/>
+    <path d="M27 39 Q36 35 64 39" fill="none" stroke="#3a7018" stroke-width="0.8"/>
+    <!-- Eyes — large, expressive -->
+    <ellipse cx="37" cy="44" rx="10" ry="8.5" fill="#181808" stroke="#222208" stroke-width="1"/>
+    <ellipse cx="63" cy="44" rx="10" ry="8.5" fill="#181808" stroke="#222208" stroke-width="1"/>
+    <!-- Irises — warm amber-green -->
+    <ellipse cx="37" cy="44" rx="7" ry="6" fill="#3e2808"/>
+    <ellipse cx="63" cy="44" rx="7" ry="6" fill="#3e2808"/>
+    <ellipse cx="36.5" cy="43.5" rx="3.8" ry="3.8" fill="#b8cc80"/>
+    <ellipse cx="62.5" cy="43.5" rx="3.8" ry="3.8" fill="#b8cc80"/>
+    <!-- Pupils -->
+    <circle cx="37" cy="44" r="1.8" fill="#1a1200"/>
+    <circle cx="63" cy="44" r="1.8" fill="#1a1200"/>
+    <!-- Catchlight -->
+    <circle cx="35.5" cy="42.5" r="1.2" fill="#fff" opacity="0.75"/>
+    <circle cx="61.5" cy="42.5" r="1.2" fill="#fff" opacity="0.75"/>
+    <!-- Nostrils -->
+    <ellipse cx="47" cy="54" rx="3" ry="2" fill="#3a6a18" opacity="0.65"/>
+    <ellipse cx="53" cy="54" rx="3" ry="2" fill="#3a6a18" opacity="0.65"/>
+    <!-- Mouth — slight smile -->
+    <path d="M38 62 Q50 70 62 62" fill="none" stroke="#2e6010" stroke-width="2"/>
+    <!-- White wisps of beard -->
+    <path d="M38 68 Q34 75 37 80" fill="none" stroke="#a8d880" stroke-width="1.5"/>
+    <path d="M50 70 L50 78" fill="none" stroke="#a8d880" stroke-width="1.5"/>
+    <path d="M62 68 Q66 75 63 80" fill="none" stroke="#a8d880" stroke-width="1.5"/>
+    <!-- Jedi robes -->
+    <path d="M20 72 Q26 66 50 64 Q74 66 80 72 L84 118 Q50 124 16 118 Z" fill="#3e3020" stroke="#2e2012"/>
+    <!-- Robe folds / shading -->
+    <path d="M24 80 Q50 76 76 80" fill="none" stroke="#4e3e28" stroke-width="1"/>
+    <path d="M22 92 Q50 88 78 92" fill="none" stroke="#4e3e28" stroke-width="1"/>
+    <path d="M22 106 Q50 102 78 106" fill="none" stroke="#4e3e28" stroke-width="1"/>
+    <!-- Cane / walking stick -->
+    <line x1="74" y1="82" x2="79" y2="118" stroke="#5e4a28" stroke-width="3.5" stroke-linecap="round"/>
+    <ellipse cx="73.5" cy="82" rx="5.5" ry="3" fill="#7a6040"/>
   </g></svg>`,
 
   boba: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="bg1" cx="35%" cy="25%"><stop offset="0%" stop-color="#8aaa7a"/><stop offset="100%" stop-color="#4a6a3a"/></radialGradient>
-    <radialGradient id="bg2" cx="35%" cy="30%"><stop offset="0%" stop-color="#7a9a6a"/><stop offset="100%" stop-color="#3a5a2a"/></radialGradient>
-    <filter id="bf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#001100" flood-opacity="0.5"/></filter>
+    <radialGradient id="bHelm" cx="38%" cy="26%" r="62%">
+      <stop offset="0%" stop-color="#9ab888"/>
+      <stop offset="55%" stop-color="#6a8858"/>
+      <stop offset="100%" stop-color="#3e5830"/>
+    </radialGradient>
+    <radialGradient id="bBody" cx="40%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#7aa068"/>
+      <stop offset="60%" stop-color="#4e7038"/>
+      <stop offset="100%" stop-color="#304820"/>
+    </radialGradient>
+    <filter id="bf" x="-15%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#001400" flood-opacity="0.7"/>
+    </filter>
   </defs>
   <g filter="url(#bf)">
-  <!-- Body armor -->
-  <ellipse cx="50" cy="82" rx="30" ry="28" fill="url(#bg2)" stroke="#3a5a2a" stroke-width="1.5"/>
-  <!-- Chest armor plates -->
-  <path d="M32 70 Q50 66 68 70 L66 84 Q50 88 34 84 Z" fill="#6a8a5a" stroke="#4a6a3a" stroke-width="0.5"/>
-  <!-- Armor cross plate -->
-  <rect x="41" y="68" width="18" height="18" rx="2" fill="#5a7a4a" stroke="#3a5a2a"/>
-  <!-- Chest dent / battle damage -->
-  <circle cx="50" cy="77" r="4" fill="#4a6a3a" stroke="#2a4a1a" stroke-width="0.5"/>
-  <!-- Rocket pack -->
-  <rect x="60" y="62" width="12" height="20" rx="4" fill="#5a7a5a" stroke="#3a5a2a"/>
-  <rect x="62" y="58" width="8" height="8" rx="2" fill="#4a6a4a"/>
-  <!-- Neck -->
-  <rect x="44" y="44" width="12" height="10" rx="3" fill="#6a8a5a" stroke="#4a6a3a"/>
-  <!-- Helmet -->
-  <ellipse cx="50" cy="32" rx="27" ry="26" fill="url(#bg1)" stroke="#4a6a3a" stroke-width="1.5"/>
-  <!-- Helmet ridge top -->
-  <path d="M23 32 Q50 6 77 32" fill="none" stroke="#6a8a5a" stroke-width="2.5"/>
-  <!-- T-visor -->
-  <rect x="24" y="28" width="52" height="14" rx="3" fill="#111"/>
-  <rect x="44" y="28" width="12" height="14" rx="2" fill="#0a0a0a"/>
-  <!-- Visor tint -->
-  <rect x="24" y="28" width="52" height="14" rx="3" fill="#004400" opacity="0.5"/>
-  <ellipse cx="34" cy="34" rx="2" ry="1.5" fill="#00ff44" opacity="0.3"/>
-  <!-- Dents and battle marks -->
-  <path d="M32 22 L36 26" stroke="#3a5a2a" stroke-width="2"/>
-  <path d="M60 18 L65 24" stroke="#3a5a2a" stroke-width="1.5"/>
-  <!-- Rangefinder -->
-  <rect x="64" y="14" width="5" height="16" rx="2" fill="#4a6a3a" stroke="#2a4a1a"/>
-  <circle cx="66.5" cy="14" r="3" fill="#cc0000" stroke="#990000"/>
-  <!-- Legs -->
-  <rect x="30" y="106" width="15" height="12" rx="4" fill="#6a8a5a" stroke="#4a6a3a"/>
-  <rect x="55" y="106" width="15" height="12" rx="4" fill="#6a8a5a" stroke="#4a6a3a"/>
+    <!-- Body armor plates -->
+    <ellipse cx="50" cy="82" rx="28" ry="26" fill="url(#bBody)"/>
+    <path d="M30 70 Q50 65 70 70 L68 84 Q50 89 32 84 Z" fill="#7a9868" stroke="#4e6838" stroke-width="0.8"/>
+    <!-- Center chest plate diamond -->
+    <rect x="40" y="68" width="20" height="18" rx="3" fill="#5a7848" stroke="#3e5830" stroke-width="0.8"/>
+    <!-- Dent/battle damage markings -->
+    <circle cx="50" cy="77" r="3.5" fill="#3e5830" stroke="#2a3e20" stroke-width="0.5"/>
+    <path d="M44 70 L47 73" stroke="#3e5830" stroke-width="1.2"/>
+    <!-- Jetpack -->
+    <rect x="61" y="60" width="14" height="22" rx="4" fill="#5a7850" stroke="#3e5838"/>
+    <rect x="63" y="56" width="10" height="8" rx="2" fill="#4a6840"/>
+    <rect x="65" y="54" width="6" height="5" rx="1.5" fill="#607858"/>
+    <!-- Neck -->
+    <rect x="44" y="44" width="12" height="10" rx="3" fill="#7a9868" stroke="#4e6838" stroke-width="0.8"/>
+    <!-- Helmet dome -->
+    <ellipse cx="50" cy="32" rx="26" ry="25" fill="url(#bHelm)" stroke="#5a7848" stroke-width="1.2"/>
+    <!-- Helmet top ridge, weathered -->
+    <path d="M24 32 Q50 7 76 32" fill="none" stroke="#7a9a68" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- T-visor — wide rectangular slit -->
+    <rect x="25" y="28" width="50" height="13" rx="2.5" fill="#0e0e0e"/>
+    <rect x="45" y="28" width="10" height="13" rx="1.5" fill="#080808"/>
+    <!-- Visor tint green -->
+    <rect x="25" y="28" width="50" height="13" rx="2.5" fill="#003308" opacity="0.5"/>
+    <ellipse cx="34" cy="34" rx="2" ry="1.2" fill="#00cc44" opacity="0.3"/>
+    <!-- Battle scars on helmet -->
+    <path d="M30 22 L35 27" stroke="#3e5830" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M62 18 L68 25" stroke="#3e5830" stroke-width="2" stroke-linecap="round"/>
+    <!-- Rangefinder arm -->
+    <rect x="64" y="13" width="5" height="16" rx="2" fill="#3e5838" stroke="#2a3e28"/>
+    <circle cx="66.5" cy="13" r="3.5" fill="#cc0000" stroke="#880000" stroke-width="0.8"/>
+    <!-- Legs -->
+    <rect x="30" y="105" width="16" height="12" rx="3.5" fill="url(#bBody)" stroke="#4e6838"/>
+    <rect x="54" y="105" width="16" height="12" rx="3.5" fill="url(#bBody)" stroke="#4e6838"/>
   </g></svg>`,
 
   predator: `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="pg1" cx="35%" cy="30%"><stop offset="0%" stop-color="#cc9944"/><stop offset="100%" stop-color="#7a5010"/></radialGradient>
-    <radialGradient id="pg2" cx="40%" cy="35%"><stop offset="0%" stop-color="#bb8833"/><stop offset="100%" stop-color="#6a4008"/></radialGradient>
-    <filter id="pf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#220000" flood-opacity="0.5"/></filter>
+    <radialGradient id="pHead" cx="38%" cy="30%" r="62%">
+      <stop offset="0%" stop-color="#d8a848"/>
+      <stop offset="55%" stop-color="#9a6e18"/>
+      <stop offset="100%" stop-color="#5a3e08"/>
+    </radialGradient>
+    <radialGradient id="pBody" cx="40%" cy="32%" r="65%">
+      <stop offset="0%" stop-color="#c09038"/>
+      <stop offset="60%" stop-color="#7a5810"/>
+      <stop offset="100%" stop-color="#4a3408"/>
+    </radialGradient>
+    <filter id="pf" x="-20%" y="-15%" width="140%" height="135%">
+      <feDropShadow dx="0" dy="4" stdDeviation="3.5" flood-color="#1a0800" flood-opacity="0.65"/>
+    </filter>
   </defs>
   <g filter="url(#pf)">
-  <!-- Dreadlocks/mandible stalks -->
-  <path d="M26 14 Q18 4 14 0 L20 18" stroke="#8a6020" stroke-width="4" fill="none" stroke-linecap="round"/>
-  <path d="M34 10 Q28 0 26 -2 L32 14" stroke="#8a6020" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <path d="M44 8 Q40 -2 40 -4 L45 10" stroke="#8a6020" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <path d="M56 8 Q60 -2 60 -4 L55 10" stroke="#8a6020" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <path d="M66 10 Q72 0 74 -2 L68 14" stroke="#8a6020" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <path d="M74 14 Q82 4 86 0 L80 18" stroke="#8a6020" stroke-width="4" fill="none" stroke-linecap="round"/>
-  <!-- Head -->
-  <ellipse cx="50" cy="48" rx="32" ry="34" fill="url(#pg1)" stroke="#7a5010" stroke-width="1.5"/>
-  <!-- Forehead ridges (rough texture) -->
-  <path d="M28 38 Q38 34 62 38 Q72 42 62 38" fill="none" stroke="#8a5a18" stroke-width="2"/>
-  <path d="M30 44 Q40 40 60 44 Q70 48 60 44" fill="none" stroke="#8a5a18" stroke-width="1.5"/>
-  <!-- Eyes (glowing) -->
-  <ellipse cx="36" cy="48" rx="9" ry="7" fill="#1a1800"/>
-  <ellipse cx="36" cy="48" rx="6" ry="5" fill="#2a2400"/>
-  <ellipse cx="36" cy="47" rx="3" ry="3" fill="#ffcc00" opacity="0.9"/>
-  <ellipse cx="35" cy="46" rx="1.5" ry="1.5" fill="#ffee88" opacity="0.8"/>
-  <ellipse cx="64" cy="48" rx="9" ry="7" fill="#1a1800"/>
-  <ellipse cx="64" cy="48" rx="6" ry="5" fill="#2a2400"/>
-  <ellipse cx="64" cy="47" rx="3" ry="3" fill="#ffcc00" opacity="0.9"/>
-  <ellipse cx="63" cy="46" rx="1.5" ry="1.5" fill="#ffee88" opacity="0.8"/>
-  <!-- Mandibles (4-pronged) -->
-  <path d="M38 66 L34 76 M44 68 L41 80 M56 68 L59 80 M62 66 L66 76" stroke="#7a5010" stroke-width="2.5" stroke-linecap="round"/>
-  <path d="M35 73 L38 77 M43 78 L46 82 M54 78 L57 82 M65 73 L62 77" stroke="#6a4008" stroke-width="1" stroke-linecap="round"/>
-  <!-- Bio-mask (shoulder cannon hint) -->
-  <path d="M68 36 Q76 30 80 36 L78 46 Q72 50 70 44 Z" fill="#4a3010" stroke="#2a1a00"/>
-  <circle cx="74" cy="38" r="3" fill="#cc2200" stroke="#aa0000"/>
-  <!-- Body -->
-  <rect x="22" y="86" width="56" height="40" rx="6" fill="url(#pg2)" stroke="#6a4010" stroke-width="1.5"/>
-  <!-- Armor net pattern -->
-  <line x1="28" y1="92" x2="72" y2="92" stroke="#8a6020" stroke-width="0.8"/>
-  <line x1="28" y1="100" x2="72" y2="100" stroke="#8a6020" stroke-width="0.8"/>
-  <line x1="28" y1="108" x2="72" y2="108" stroke="#8a6020" stroke-width="0.8"/>
-  <line x1="28" y1="116" x2="72" y2="116" stroke="#8a6020" stroke-width="0.8"/>
-  <circle cx="38" cy="96" r="4" fill="#cc2200" stroke="#aa0000"/>
-  <circle cx="50" cy="96" r="4" fill="#2222cc" stroke="#0000aa"/>
-  <circle cx="62" cy="96" r="4" fill="#cc2200" stroke="#aa0000"/>
+    <!-- Dreadlocks — long bone-tipped -->
+    <path d="M26 16 Q18 4 14 -2 L21 20" stroke="#7a5818" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <path d="M34 11 Q28 0 26 -4 L33 16" stroke="#7a5818" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M44 9 Q40 -3 40 -6 L46 12" stroke="#7a5818" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M56 9 Q60 -3 60 -6 L54 12" stroke="#7a5818" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M66 11 Q72 0 74 -4 L67 16" stroke="#7a5818" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M74 16 Q82 4 86 -2 L79 20" stroke="#7a5818" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <!-- Dreadlock tips / bone decorations -->
+    <ellipse cx="14" cy="-1" rx="2.5" ry="3" fill="#aa8850"/>
+    <ellipse cx="26" cy="-3" rx="2" ry="2.5" fill="#aa8850"/>
+    <ellipse cx="40" cy="-5" rx="1.8" ry="2.2" fill="#aa8850"/>
+    <ellipse cx="60" cy="-5" rx="1.8" ry="2.2" fill="#aa8850"/>
+    <ellipse cx="74" cy="-3" rx="2" ry="2.5" fill="#aa8850"/>
+    <ellipse cx="86" cy="-1" rx="2.5" ry="3" fill="#aa8850"/>
+    <!-- Head — broad brow ridges -->
+    <ellipse cx="50" cy="48" rx="31" ry="33" fill="url(#pHead)" stroke="#6a4810" stroke-width="1.5"/>
+    <!-- Forehead carapace ridges -->
+    <path d="M28 36 Q42 31 58 36 Q68 40 58 36" fill="none" stroke="#8a5818" stroke-width="2.5"/>
+    <path d="M30 43 Q42 38 58 43 Q68 47 58 43" fill="none" stroke="#8a5818" stroke-width="2"/>
+    <path d="M32 50 Q42 46 58 50 Q66 53 58 50" fill="none" stroke="#7a4810" stroke-width="1.2"/>
+    <!-- Eyes — golden compound -->
+    <ellipse cx="36" cy="48" rx="9" ry="7" fill="#1a1600"/>
+    <ellipse cx="36" cy="48" rx="6.5" ry="5" fill="#2a2000"/>
+    <ellipse cx="36" cy="47" rx="3.5" ry="3.2" fill="#ffcc00" opacity="0.9"/>
+    <ellipse cx="35" cy="46" rx="1.8" ry="1.8" fill="#ffee88" opacity="0.85"/>
+    <ellipse cx="64" cy="48" rx="9" ry="7" fill="#1a1600"/>
+    <ellipse cx="64" cy="48" rx="6.5" ry="5" fill="#2a2000"/>
+    <ellipse cx="64" cy="47" rx="3.5" ry="3.2" fill="#ffcc00" opacity="0.9"/>
+    <ellipse cx="63" cy="46" rx="1.8" ry="1.8" fill="#ffee88" opacity="0.85"/>
+    <!-- Mandibles — 4 chitinous prongs -->
+    <path d="M38 66 L33 78" stroke="#7a4808" stroke-width="3" stroke-linecap="round"/>
+    <path d="M44 68 L41 82" stroke="#7a4808" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M56 68 L59 82" stroke="#7a4808" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M62 66 L67 78" stroke="#7a4808" stroke-width="3" stroke-linecap="round"/>
+    <!-- Mandible spine ridges -->
+    <path d="M33 75 L36 79" stroke="#5a3808" stroke-width="1" stroke-linecap="round"/>
+    <path d="M67 75 L64 79" stroke="#5a3808" stroke-width="1" stroke-linecap="round"/>
+    <!-- Shoulder plasma cannon mount -->
+    <path d="M66 36 Q76 28 82 35 L80 46 Q73 50 70 44 Z" fill="#3a2808" stroke="#1a1200"/>
+    <circle cx="74" cy="36" r="3.5" fill="#cc1800" stroke="#880800" stroke-width="0.8"/>
+    <rect x="69" y="36" width="6" height="2" rx="1" fill="#550000"/>
+    <!-- Body — dense muscle mass, armor net -->
+    <rect x="22" y="86" width="56" height="42" rx="6" fill="url(#pBody)" stroke="#6a4010" stroke-width="1.5"/>
+    <!-- Net/grid texture -->
+    <line x1="28" y1="92" x2="72" y2="92" stroke="#8a6020" stroke-width="0.9"/>
+    <line x1="28" y1="100" x2="72" y2="100" stroke="#8a6020" stroke-width="0.9"/>
+    <line x1="28" y1="108" x2="72" y2="108" stroke="#8a6020" stroke-width="0.9"/>
+    <line x1="28" y1="116" x2="72" y2="116" stroke="#8a6020" stroke-width="0.9"/>
+    <line x1="36" y1="86" x2="36" y2="128" stroke="#8a6020" stroke-width="0.7"/>
+    <line x1="50" y1="86" x2="50" y2="128" stroke="#8a6020" stroke-width="0.7"/>
+    <line x1="64" y1="86" x2="64" y2="128" stroke="#8a6020" stroke-width="0.7"/>
+    <!-- Weapon trophies / medals -->
+    <circle cx="38" cy="96" r="4" fill="#cc2200" stroke="#880000" stroke-width="0.8"/>
+    <circle cx="50" cy="96" r="4" fill="#2222cc" stroke="#000088" stroke-width="0.8"/>
+    <circle cx="62" cy="96" r="4" fill="#cc2200" stroke="#880000" stroke-width="0.8"/>
   </g></svg>`,
 
   vader: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="vg1" cx="35%" cy="25%"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#080808"/></radialGradient>
-    <radialGradient id="vg2" cx="40%" cy="30%"><stop offset="0%" stop-color="#1a1a1a"/><stop offset="100%" stop-color="#030303"/></radialGradient>
-    <radialGradient id="vgEye" cx="30%" cy="30%"><stop offset="0%" stop-color="#ff4444"/><stop offset="100%" stop-color="#880000"/></radialGradient>
-    <filter id="vf"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#ff0000" flood-opacity="0.15"/></filter>
+    <radialGradient id="vHelm" cx="36%" cy="26%" r="62%">
+      <stop offset="0%" stop-color="#3a3a3a"/>
+      <stop offset="50%" stop-color="#1a1a1a"/>
+      <stop offset="100%" stop-color="#060606"/>
+    </radialGradient>
+    <radialGradient id="vBody" cx="38%" cy="28%" r="65%">
+      <stop offset="0%" stop-color="#282828"/>
+      <stop offset="55%" stop-color="#141414"/>
+      <stop offset="100%" stop-color="#050505"/>
+    </radialGradient>
+    <radialGradient id="vEye" cx="30%" cy="28%" r="55%">
+      <stop offset="0%" stop-color="#ff5555"/>
+      <stop offset="60%" stop-color="#cc0000"/>
+      <stop offset="100%" stop-color="#660000"/>
+    </radialGradient>
+    <filter id="vf" x="-20%" y="-12%" width="140%" height="132%">
+      <feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#440000" flood-opacity="0.3"/>
+    </filter>
   </defs>
   <g filter="url(#vf)">
-  <!-- Shoulder pauldrons -->
-  <rect x="4" y="50" width="18" height="26" rx="4" fill="url(#vg2)" stroke="#2a2a2a"/>
-  <rect x="78" y="50" width="18" height="26" rx="4" fill="url(#vg2)" stroke="#2a2a2a"/>
-  <!-- Body -->
-  <ellipse cx="50" cy="84" rx="34" ry="30" fill="url(#vg2)" stroke="#1a1a1a" stroke-width="1.5"/>
-  <!-- Life support chest panel -->
-  <rect x="30" y="72" width="40" height="28" rx="4" fill="#111"/>
-  <rect x="32" y="74" width="16" height="10" rx="2" fill="#1a1a1a" stroke="#222"/>
-  <circle cx="35" cy="79" r="2.5" fill="#ff0000"/>
-  <circle cx="41" cy="79" r="2.5" fill="#00ff00"/>
-  <circle cx="35" cy="86" r="2" fill="#0000ff"/>
-  <circle cx="41" cy="86" r="2" fill="#ffff00"/>
-  <rect x="52" y="74" width="16" height="10" rx="2" fill="#222"/>
-  <rect x="52" y="86" width="16" height="10" rx="2" fill="#222"/>
-  <line x1="54" y1="79" x2="66" y2="79" stroke="#444" stroke-width="1.5"/>
-  <line x1="54" y1="91" x2="66" y2="91" stroke="#444" stroke-width="1.5"/>
-  <!-- Cape hint -->
-  <path d="M16 56 Q10 80 14 110 Q20 118 50 120 Q80 118 86 110 Q90 80 84 56" fill="#0a0a0a" opacity="0.8"/>
-  <!-- Neck collar -->
-  <rect x="38" y="42" width="24" height="12" rx="4" fill="#111" stroke="#222" stroke-width="1.5"/>
-  <!-- Helmet -->
-  <ellipse cx="50" cy="30" rx="30" ry="30" fill="url(#vg1)" stroke="#222" stroke-width="1.5"/>
-  <!-- Helmet dome ridge -->
-  <path d="M20 30 Q50 0 80 30" fill="none" stroke="#2a2a2a" stroke-width="2.5"/>
-  <!-- Face plate lower -->
-  <path d="M24 34 Q34 28 50 26 Q66 28 76 34 L74 56 Q60 68 40 68 L26 56 Z" fill="#0a0a0a" stroke="#1a1a1a"/>
-  <!-- Mouth grille -->
-  <line x1="35" y1="56" x2="65" y2="56" stroke="#2a2a2a" stroke-width="2"/>
-  <line x1="35" y1="61" x2="65" y2="61" stroke="#2a2a2a" stroke-width="1.5"/>
-  <line x1="35" y1="66" x2="65" y2="66" stroke="#2a2a2a" stroke-width="1.5"/>
-  <!-- Eye lenses (glowing red) -->
-  <ellipse cx="35" cy="44" rx="11" ry="7" fill="#1a0000" stroke="#330000" stroke-width="1"/>
-  <ellipse cx="35" cy="44" rx="8" ry="5" fill="url(#vgEye)"/>
-  <ellipse cx="35" cy="43" rx="5" ry="3.5" fill="#ff3333"/>
-  <ellipse cx="33" cy="42" rx="2.5" ry="2" fill="#ff8888" opacity="0.8"/>
-  <!-- Red eye ambient glow -->
-  <ellipse cx="35" cy="44" rx="13" ry="9" fill="#ff0000" opacity="0.08"/>
-  <ellipse cx="65" cy="44" rx="11" ry="7" fill="#1a0000" stroke="#330000" stroke-width="1"/>
-  <ellipse cx="65" cy="44" rx="8" ry="5" fill="url(#vgEye)"/>
-  <ellipse cx="65" cy="43" rx="5" ry="3.5" fill="#ff3333"/>
-  <ellipse cx="63" cy="42" rx="2.5" ry="2" fill="#ff8888" opacity="0.8"/>
-  <ellipse cx="65" cy="44" rx="13" ry="9" fill="#ff0000" opacity="0.08"/>
+    <!-- Cape — sweeping behind figure -->
+    <path d="M16 56 Q9 82 13 112 Q20 120 50 122 Q80 120 87 112 Q91 82 84 56 L78 50 Q78 82 50 88 Q22 82 22 50 Z" fill="#080808" opacity="0.85"/>
+    <!-- Shoulder pauldrons — heavy armor -->
+    <rect x="4" y="50" width="18" height="26" rx="3" fill="url(#vBody)" stroke="#222"/>
+    <rect x="78" y="50" width="18" height="26" rx="3" fill="url(#vBody)" stroke="#222"/>
+    <!-- Pauldron ridges -->
+    <line x1="6" y1="56" x2="20" y2="56" stroke="#2a2a2a" stroke-width="1"/>
+    <line x1="6" y1="62" x2="20" y2="62" stroke="#2a2a2a" stroke-width="1"/>
+    <line x1="80" y1="56" x2="94" y2="56" stroke="#2a2a2a" stroke-width="1"/>
+    <line x1="80" y1="62" x2="94" y2="62" stroke="#2a2a2a" stroke-width="1"/>
+    <!-- Body torso -->
+    <ellipse cx="50" cy="84" rx="34" ry="30" fill="url(#vBody)" stroke="#1a1a1a" stroke-width="1.5"/>
+    <!-- Life support chest panel — detailed -->
+    <rect x="29" y="71" width="42" height="30" rx="4" fill="#0e0e0e" stroke="#222"/>
+    <!-- Left panel — button array 2×3 -->
+    <rect x="31" y="73" width="18" height="14" rx="2" fill="#1a1a1a" stroke="#2a2a2a" stroke-width="0.7"/>
+    <circle cx="35" cy="77" r="2.5" fill="#ff0000" opacity="0.9"/>
+    <circle cx="43" cy="77" r="2.5" fill="#00cc00" opacity="0.9"/>
+    <circle cx="35" cy="83" r="2.2" fill="#0033ff" opacity="0.9"/>
+    <circle cx="43" cy="83" r="2.2" fill="#ffcc00" opacity="0.9"/>
+    <circle cx="35" cy="88.5" r="1.8" fill="#ff6600" opacity="0.8"/>
+    <circle cx="43" cy="88.5" r="1.8" fill="#00cccc" opacity="0.8"/>
+    <!-- Right panel — flat displays -->
+    <rect x="53" y="73" width="16" height="14" rx="2" fill="#1e1e1e" stroke="#2a2a2a" stroke-width="0.7"/>
+    <line x1="55" y1="78" x2="67" y2="78" stroke="#333" stroke-width="1.5"/>
+    <line x1="55" y1="82" x2="67" y2="82" stroke="#333" stroke-width="1.5"/>
+    <line x1="55" y1="86" x2="67" y2="86" stroke="#333" stroke-width="1"/>
+    <!-- Lower life support band -->
+    <rect x="53" y="89" width="16" height="10" rx="2" fill="#161616" stroke="#2a2a2a" stroke-width="0.7"/>
+    <line x1="55" y1="93" x2="67" y2="93" stroke="#2a2a2a" stroke-width="1.5"/>
+    <line x1="55" y1="97" x2="67" y2="97" stroke="#2a2a2a" stroke-width="1"/>
+    <!-- Life support tubes from chest to belt -->
+    <path d="M29 95 Q22 100 24 108" stroke="#1a1a1a" stroke-width="2.5" fill="none"/>
+    <path d="M71 95 Q78 100 76 108" stroke="#1a1a1a" stroke-width="2.5" fill="none"/>
+    <!-- Neck collar / gorget -->
+    <rect x="37" y="42" width="26" height="12" rx="4" fill="#121212" stroke="#1e1e1e" stroke-width="1.5"/>
+    <line x1="39" y1="47" x2="61" y2="47" stroke="#222" stroke-width="1"/>
+    <!-- Helmet — iconic angular dome -->
+    <ellipse cx="50" cy="29" rx="30" ry="29" fill="url(#vHelm)" stroke="#1e1e1e" stroke-width="1.5"/>
+    <!-- Helmet dome ridge -->
+    <path d="M20 29 Q50 -1 80 29" fill="none" stroke="#2e2e2e" stroke-width="2.5"/>
+    <!-- Secondary ridge -->
+    <path d="M26 29 Q50 5 74 29" fill="none" stroke="#222" stroke-width="1"/>
+    <!-- Face plate — angular lower half -->
+    <path d="M24 33 Q36 27 50 25 Q64 27 76 33 L74 54 Q62 66 38 66 L26 54 Z" fill="#0a0a0a" stroke="#181818" stroke-width="1"/>
+    <!-- Cheek ridges -->
+    <path d="M26 36 Q30 32 36 30" fill="none" stroke="#222" stroke-width="1.2"/>
+    <path d="M74 36 Q70 32 64 30" fill="none" stroke="#222" stroke-width="1.2"/>
+    <!-- Grille / mouth vent — 3 bars -->
+    <line x1="35" y1="55" x2="65" y2="55" stroke="#222" stroke-width="2"/>
+    <line x1="35" y1="60" x2="65" y2="60" stroke="#222" stroke-width="1.8"/>
+    <line x1="36" y1="65" x2="64" y2="65" stroke="#1e1e1e" stroke-width="1.5"/>
+    <!-- Breathing mask vents -->
+    <circle cx="38" cy="52" r="2" fill="#181818"/>
+    <circle cx="62" cy="52" r="2" fill="#181818"/>
+    <!-- Eye lenses — deep red glow -->
+    <ellipse cx="35" cy="43" rx="11" ry="7.5" fill="#1a0000" stroke="#2a0000" stroke-width="1"/>
+    <ellipse cx="35" cy="43" rx="8" ry="5.5" fill="url(#vEye)"/>
+    <ellipse cx="35" cy="42" rx="5" ry="3.5" fill="#ff4444" opacity="0.8"/>
+    <ellipse cx="33" cy="41" rx="2.5" ry="2" fill="#ff9999" opacity="0.6"/>
+    <ellipse cx="35" cy="43" rx="13" ry="9" fill="#ff0000" opacity="0.06"/>
+    <ellipse cx="65" cy="43" rx="11" ry="7.5" fill="#1a0000" stroke="#2a0000" stroke-width="1"/>
+    <ellipse cx="65" cy="43" rx="8" ry="5.5" fill="url(#vEye)"/>
+    <ellipse cx="65" cy="42" rx="5" ry="3.5" fill="#ff4444" opacity="0.8"/>
+    <ellipse cx="63" cy="41" rx="2.5" ry="2" fill="#ff9999" opacity="0.6"/>
+    <ellipse cx="65" cy="43" rx="13" ry="9" fill="#ff0000" opacity="0.06"/>
   </g></svg>`
 };
 
 // ─── ENEMY TYPES ─────────────────────────────────────────────────────────────
 const ENEMIES = [
-  { id:'trooper',   name:'Stormtrooper', pts:10,  hp:1, color:'#aaaaaa', rare:0.22 },
-  { id:'clone',     name:'Clone',        pts:10,  hp:1, color:'#aaddff', rare:0.22 },
-  { id:'xenomorph', name:'Xenomorph',    pts:20,  hp:1, color:'#44ff88', rare:0.16 },
-  { id:'r2d2',      name:'R2-D2',        pts:20,  hp:1, color:'#4488ff', rare:0.14 },
-  { id:'yoda',      name:'Yoda',         pts:30,  hp:2, color:'#88dd44', rare:0.10 },
-  { id:'boba',      name:'Boba Fett',    pts:30,  hp:2, color:'#88bb55', rare:0.08 },
-  { id:'predator',  name:'Predator',     pts:40,  hp:2, color:'#ffcc22', rare:0.05 },
-  { id:'vader',     name:'Darth Vader',  pts:50,  hp:3, color:'#ff4444', rare:0.03 },
+  { id:'trooper',   name:'Stormtrooper', pts:10,  hp:1, color:'#b8b8b8', rare:0.22 },
+  { id:'clone',     name:'Clone',        pts:10,  hp:1, color:'#88aad8', rare:0.22 },
+  { id:'xenomorph', name:'Xenomorph',    pts:20,  hp:1, color:'#44aa44', rare:0.16 },
+  { id:'r2d2',      name:'R2-D2',        pts:20,  hp:1, color:'#4488ee', rare:0.14 },
+  { id:'yoda',      name:'Yoda',         pts:30,  hp:2, color:'#88c855', rare:0.10 },
+  { id:'boba',      name:'Boba Fett',    pts:30,  hp:2, color:'#78a048', rare:0.08 },
+  { id:'predator',  name:'Predator',     pts:40,  hp:2, color:'#d8a838', rare:0.05 },
+  { id:'vader',     name:'Darth Vader',  pts:50,  hp:3, color:'#cc3333', rare:0.03 },
 ];
 
-// Fill legend icons
-ENEMIES.forEach(e => {
-  const el = document.getElementById('li-'+e.id);
-  if(el) el.innerHTML = SVGS[e.id];
+ENEMIES.forEach(e=>{
+  const el=document.getElementById('li-'+e.id);
+  if(el) el.innerHTML=SVGS[e.id];
 });
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
-const TOTAL_TIME = 60;
-let score=0, hits=0, shots=0, combo=1, maxCombo=1, timeLeft=TOTAL_TIME;
-let isPlaying=false, spawnTimer=null, tickTimer=null;
+const TOTAL_TIME=60;
+let score=0,hits=0,shots=0,combo=1,maxCombo=1,timeLeft=TOTAL_TIME;
+let isPlaying=false,spawnTimer=null,tickTimer=null;
 
 // ─── ELEMENTS ────────────────────────────────────────────────────────────────
-const scoreEl    = document.getElementById('scoreEl');
-const timeEl     = document.getElementById('timeEl');
-const hitsEl     = document.getElementById('hitsEl');
-const comboEl    = document.getElementById('comboEl');
-const hsEl       = document.getElementById('hsEl');
-const timerFill  = document.getElementById('timerFill');
-const feedEl     = document.getElementById('feed');
-const startBtn   = document.getElementById('startBtn');
-const vfx        = document.getElementById('vfx');
-const endScreen  = document.getElementById('endScreen');
-const gameGrid   = document.getElementById('game');
+const scoreEl   = document.getElementById('scoreEl');
+const timeEl    = document.getElementById('timeEl');
+const hitsEl    = document.getElementById('hitsEl');
+const comboEl   = document.getElementById('comboEl');
+const hsEl      = document.getElementById('hsEl');
+const timerFill = document.getElementById('timerFill');
+const feedEl    = document.getElementById('feed');
+const startBtn  = document.getElementById('startBtn');
+const vfx       = document.getElementById('vfx');
+const endScreen = document.getElementById('endScreen');
+const gameGrid  = document.getElementById('game');
 
-let highScore = parseInt(localStorage.getItem('gmh_highscore') || '0');
-hsEl.textContent = String(highScore).padStart(6,'0');
+let highScore=parseInt(localStorage.getItem('gmh_highscore')||'0');
+hsEl.textContent=String(highScore).padStart(6,'0');
 
 // ─── BUILD GRID ───────────────────────────────────────────────────────────────
 for(let i=0;i<9;i++){
-  const hole = document.createElement('div'); hole.className='hole';
-  const tgt  = document.createElement('div'); tgt.className='target';
+  const hole=document.createElement('div'); hole.className='hole';
+  const tgt =document.createElement('div'); tgt.className='target';
   hole.appendChild(tgt);
   gameGrid.appendChild(hole);
 }
 
 // ─── AUDIO ────────────────────────────────────────────────────────────────────
-const audio = new (window.AudioContext || window.webkitAudioContext)();
+const audio=new(window.AudioContext||window.webkitAudioContext)();
 
-function playTone(freq, type, dur, vol=0.08, ramp=true){
+function playTone(freq,type,dur,vol=0.07,ramp=true){
   try{
-    const osc=audio.createOscillator(), gain=audio.createGain();
+    const osc=audio.createOscillator(),gain=audio.createGain();
     osc.type=type; osc.frequency.value=freq;
-    if(ramp) osc.frequency.exponentialRampToValueAtTime(10, audio.currentTime+dur);
-    gain.gain.setValueAtTime(vol, audio.currentTime);
-    gain.gain.linearRampToValueAtTime(0, audio.currentTime+dur);
+    if(ramp) osc.frequency.exponentialRampToValueAtTime(10,audio.currentTime+dur);
+    gain.gain.setValueAtTime(vol,audio.currentTime);
+    gain.gain.linearRampToValueAtTime(0,audio.currentTime+dur);
     osc.connect(gain); gain.connect(audio.destination);
     osc.start(); osc.stop(audio.currentTime+dur);
   }catch(e){}
 }
-
-function playLaser(){ playTone(880,'sawtooth',0.18,0.07); playTone(440,'sine',0.1,0.05,false); }
-function playHit()  { playTone(220,'square',0.25,0.09); playTone(110,'square',0.2,0.06); }
-function playSpawn(){ playTone(380,'sine',0.1,0.03); }
-function playCombo(){ playTone(660+(combo*80),'sine',0.15,0.06,false); }
+function playLaser(){ playTone(760,'sawtooth',0.15,0.06); playTone(380,'sine',0.08,0.04,false); }
+function playHit()  { playTone(200,'square',0.22,0.08); playTone(100,'square',0.18,0.05); }
+function playSpawn(){ playTone(360,'sine',0.09,0.025); }
+function playCombo(){ playTone(600+(combo*70),'sine',0.14,0.055,false); }
 
 // ─── VFX ──────────────────────────────────────────────────────────────────────
-function spawnBurst(x, y, color){
-  // Main burst
-  const burst = document.createElement('div');
+function spawnBurst(x,y,color){
+  const burst=document.createElement('div');
   burst.className='hit-burst';
   burst.style.cssText=`left:${x}px;top:${y}px;background:radial-gradient(circle,${color},transparent)`;
   vfx.appendChild(burst);
-  setTimeout(()=>burst.remove(), 450);
+  setTimeout(()=>burst.remove(),400);
 
-  // Secondary ring
-  const ring = document.createElement('div');
-  ring.style.cssText=`position:absolute;left:${x-20}px;top:${y-20}px;width:40px;height:40px;border-radius:50%;
-    border:3px solid ${color};animation:burstOut 0.5s ease-out forwards;pointer-events:none`;
+  const ring=document.createElement('div');
+  ring.style.cssText=`position:absolute;left:${x-18}px;top:${y-18}px;width:36px;height:36px;
+    border-radius:50%;border:2px solid ${color};animation:burstOut 0.45s ease-out forwards;pointer-events:none`;
   vfx.appendChild(ring);
-  setTimeout(()=>ring.remove(), 550);
+  setTimeout(()=>ring.remove(),500);
 
-  // Spark particles
   for(let i=0;i<10;i++){
-    const angle = (i/10)*Math.PI*2;
-    const dist  = 30 + Math.random()*50;
-    const spark = document.createElement('div');
+    const angle=(i/10)*Math.PI*2;
+    const dist=28+Math.random()*44;
+    const spark=document.createElement('div');
     spark.className='spark';
     spark.style.cssText=`left:${x}px;top:${y}px;background:${color};
-      --tx:${Math.cos(angle)*dist}px;--ty:${Math.sin(angle)*dist}px;--dur:${0.3+Math.random()*0.4}s`;
+      --tx:${Math.cos(angle)*dist}px;--ty:${Math.sin(angle)*dist}px;--dur:${0.25+Math.random()*0.35}s`;
     vfx.appendChild(spark);
-    setTimeout(()=>spark.remove(), 800);
+    setTimeout(()=>spark.remove(),700);
   }
 }
 
-function spawnScorePop(x, y, pts, color){
-  const pop = document.createElement('div');
+function spawnScorePop(x,y,pts,color){
+  const pop=document.createElement('div');
   pop.className='score-pop';
-  pop.style.cssText=`left:${x-20}px;top:${y-10}px;color:${color}`;
-  pop.textContent = '+'+pts+(combo>1?' x'+combo:'');
+  pop.style.cssText=`left:${x-18}px;top:${y-10}px;color:${color}`;
+  pop.textContent='+'+pts+(combo>1?' ×'+combo:'');
   vfx.appendChild(pop);
-  setTimeout(()=>pop.remove(), 950);
+  setTimeout(()=>pop.remove(),900);
 }
 
-function spawnLaserRay(fromX, fromY, toX, toY, color){
-  const dx=toX-fromX, dy=toY-fromY;
+function spawnLaserRay(fromX,fromY,toX,toY,color){
+  const dx=toX-fromX,dy=toY-fromY;
   const len=Math.sqrt(dx*dx+dy*dy);
   const angle=Math.atan2(dy,dx)*180/Math.PI;
-  const ray = document.createElement('div');
+  const ray=document.createElement('div');
   ray.className='laser-ray';
   ray.style.cssText=`left:${fromX}px;top:${fromY}px;width:${len}px;
-    transform:rotate(${angle}deg);background:linear-gradient(to right,white 0%,${color} 40%,transparent 100%);
-    box-shadow:0 0 8px ${color},0 0 16px ${color}`;
+    transform:rotate(${angle}deg);
+    background:linear-gradient(to right,#fff 0%,${color} 30%,transparent 100%);
+    box-shadow:0 0 6px ${color},0 0 12px ${color}`;
   vfx.appendChild(ray);
-  setTimeout(()=>ray.remove(), 280);
+  setTimeout(()=>ray.remove(),250);
 }
 
-function spawnLightBeam(hole, color){
-  const beam = document.createElement('div');
+function spawnLightBeam(hole,color){
+  const beam=document.createElement('div');
   beam.className='light-beam';
-  beam.style.cssText=`background:linear-gradient(to top,${color},transparent);height:80px;border-radius:30px 30px 0 0;opacity:0.5`;
+  beam.style.cssText=`background:linear-gradient(to top,${color},transparent);
+    height:70px;border-radius:24px 24px 0 0;opacity:0.45`;
   hole.appendChild(beam);
-  setTimeout(()=>beam.remove(), 600);
+  setTimeout(()=>beam.remove(),550);
 }
 
 // ─── LOG ──────────────────────────────────────────────────────────────────────
-function log(msg, type='info'){
+const LOG_VERBS_HIT  = ['KIA','ELIMINATED','NEUTRALIZED','TARGET DOWN'];
+const LOG_VERBS_MISS = ['MISSED','NO HIT','SHOT WIDE'];
+function log(msg,type='info'){
   const div=document.createElement('div');
-  div.className=`feed-entry ${type}`;
+  div.className='feed-entry '+type;
   div.textContent=msg;
   feedEl.prepend(div);
-  while(feedEl.children.length>12) feedEl.lastChild.remove();
+  while(feedEl.children.length>14) feedEl.lastChild.remove();
 }
 
 // ─── SPAWN ────────────────────────────────────────────────────────────────────
 function pickEnemy(){
-  const r=Math.random();
-  let acc=0;
+  const r=Math.random(); let acc=0;
   for(const e of ENEMIES){ acc+=e.rare; if(r<acc) return e; }
   return ENEMIES[0];
 }
@@ -918,146 +1211,148 @@ function spawn(){
   if(!isPlaying) return;
   const targets=[...document.querySelectorAll('.target')].filter(t=>!t.classList.contains('up'));
   if(!targets.length) return;
+  const tgt=targets[Math.floor(Math.random()*targets.length)];
+  const enemy=pickEnemy();
+  const isBoss=Math.random()<0.08;
 
-  const tgt  = targets[Math.floor(Math.random()*targets.length)];
-  const enemy= pickEnemy();
-  const isBoss= Math.random()<0.08;
-
-  tgt.innerHTML = SVGS[enemy.id];
-  tgt.dataset.type  = enemy.id;
-  tgt.dataset.name  = enemy.name;
-  tgt.dataset.pts   = enemy.pts;
-  tgt.dataset.hp    = isBoss ? enemy.hp+1 : enemy.hp;
-  tgt.dataset.color = enemy.color;
-  tgt.classList.toggle('is-boss', isBoss);
+  tgt.innerHTML=SVGS[enemy.id];
+  tgt.dataset.type =enemy.id;
+  tgt.dataset.name =enemy.name;
+  tgt.dataset.pts  =enemy.pts;
+  tgt.dataset.hp   =isBoss?enemy.hp+1:enemy.hp;
+  tgt.dataset.color=enemy.color;
+  tgt.classList.toggle('is-boss',isBoss);
   tgt.classList.add('up');
 
-  // Light beam from hole on spawn
-  spawnLightBeam(tgt.parentElement, enemy.color);
+  spawnLightBeam(tgt.parentElement,enemy.color);
   playSpawn();
 
-  const stayTime = isBoss ? 2200 : 1400;
-  setTimeout(()=>{ if(tgt.classList.contains('up')){ tgt.classList.remove('up'); combo=1; updateUI(); } }, stayTime);
+  const stayTime=isBoss?2200:1400;
+  setTimeout(()=>{ if(tgt.classList.contains('up')){ tgt.classList.remove('up'); combo=1; updateUI(); } },stayTime);
 }
 
 // ─── CLICK HANDLER ────────────────────────────────────────────────────────────
-// Track cursor pos for laser origin
-let cursorX=window.innerWidth/2, cursorY=window.innerHeight/2;
-window.addEventListener('mousemove', e=>{ cursorX=e.clientX; cursorY=e.clientY; });
+let cursorX=window.innerWidth/2,cursorY=window.innerHeight/2;
+window.addEventListener('mousemove',e=>{ cursorX=e.clientX; cursorY=e.clientY; });
 
-gameGrid.addEventListener('mousedown', e=>{
+gameGrid.addEventListener('mousedown',e=>{
   if(!isPlaying) return;
-  const tgt = e.target.closest('.target');
-  if(!tgt || !tgt.classList.contains('up')) return;
+  const tgt=e.target.closest('.target');
+  if(!tgt||!tgt.classList.contains('up')) return;
   audio.resume();
 
   shots++;
-  const rect  = tgt.getBoundingClientRect();
-  const cx    = rect.left + rect.width/2;
-  const cy    = rect.top  + rect.height/2;
-  const color = tgt.dataset.color || '#00e5ff';
+  const rect=tgt.getBoundingClientRect();
+  const cx=rect.left+rect.width/2;
+  const cy=rect.top+rect.height/2;
+  const color=tgt.dataset.color||'#3a8ab4';
 
-  // Laser ray from cursor to target
-  spawnLaserRay(cursorX, cursorY, cx, cy, color);
+  spawnLaserRay(cursorX,cursorY,cx,cy,color);
   playLaser();
 
-  let hp = parseInt(tgt.dataset.hp) - 1;
-  tgt.dataset.hp = hp;
+  let hp=parseInt(tgt.dataset.hp)-1;
+  tgt.dataset.hp=hp;
   tgt.classList.add('hit-flash');
-  setTimeout(()=>tgt.classList.remove('hit-flash'), 160);
+  setTimeout(()=>tgt.classList.remove('hit-flash'),130);
 
-  if(hp <= 0){
-    const pts   = parseInt(tgt.dataset.pts) * combo;
-    const name  = tgt.dataset.name;
-    const boss  = tgt.classList.contains('is-boss');
+  if(hp<=0){
+    const pts=parseInt(tgt.dataset.pts)*combo;
+    const name=tgt.dataset.name;
+    const boss=tgt.classList.contains('is-boss');
+    const verb=LOG_VERBS_HIT[Math.floor(Math.random()*LOG_VERBS_HIT.length)];
 
-    score += pts; hits++; combo = Math.min(combo+1, 8);
-    if(combo > maxCombo) maxCombo = combo;
+    score+=pts; hits++; combo=Math.min(combo+1,8);
+    if(combo>maxCombo) maxCombo=combo;
 
     tgt.classList.remove('up');
-    spawnBurst(cx, cy, color);
-    spawnScorePop(cx, cy, pts, color);
+    spawnBurst(cx,cy,color);
+    spawnScorePop(cx,cy,pts,color);
     playHit();
     if(combo>1) playCombo();
 
-    log(`▸ ${name}${boss?' [BOSS]':''} +${pts}${combo>2?' COMBO x'+combo:''}`, boss?'boss':'hit');
+    log(`${verb}: ${name}${boss?' [HVT]':''} +${pts}${combo>2?' ×'+combo:''}`,boss?'boss':'hit');
     updateUI();
   }
 });
 
 // ─── UI UPDATE ────────────────────────────────────────────────────────────────
 function updateUI(){
-  scoreEl.textContent = score;
-  hitsEl.textContent  = hits;
-  comboEl.textContent = 'x'+combo;
-  if(combo >= 3) comboEl.style.color='#ff6d00';
-  else if(combo >= 2) comboEl.style.color=getComputedStyle(document.documentElement).getPropertyValue('--gold');
-  else comboEl.style.color=getComputedStyle(document.documentElement).getPropertyValue('--gold');
+  scoreEl.textContent=score;
+  hitsEl.textContent=hits;
+  comboEl.textContent='×'+combo;
+  if(combo>=4) comboEl.style.color='var(--red-bright)';
+  else if(combo>=2) comboEl.style.color='var(--gold)';
+  else comboEl.style.color='var(--gold)';
 }
 
 // ─── GAME LOOP ────────────────────────────────────────────────────────────────
 function startGame(){
   audio.resume();
-  score=0; hits=0; shots=0; combo=1; maxCombo=1; timeLeft=TOTAL_TIME;
+  score=0;hits=0;shots=0;combo=1;maxCombo=1;timeLeft=TOTAL_TIME;
   isPlaying=true;
   startBtn.disabled=true;
   endScreen.classList.remove('show');
   feedEl.innerHTML='';
   updateUI();
   timerFill.style.width='100%';
-  timerFill.style.background='linear-gradient(to right,var(--cyan),#00aaff)';
-  log('MISSION LAUNCHED','info');
+  timerFill.style.background='var(--accent)';
+  log('OPS LIVE — ENGAGE TARGETS','info');
 
-  const spawnDelay = ()=> 600 + Math.random()*400;
-  let nextSpawn = Date.now() + spawnDelay();
+  const spawnDelay=()=>600+Math.random()*400;
+  let nextSpawn=Date.now()+spawnDelay();
 
-  spawnTimer = setInterval(()=>{
-    if(Date.now() >= nextSpawn){ spawn(); nextSpawn = Date.now()+spawnDelay(); }
-  }, 100);
+  spawnTimer=setInterval(()=>{
+    if(Date.now()>=nextSpawn){ spawn(); nextSpawn=Date.now()+spawnDelay(); }
+  },100);
 
-  tickTimer = setInterval(()=>{
+  tickTimer=setInterval(()=>{
     timeLeft--;
-    timeEl.textContent = timeLeft;
-    const pct = (timeLeft/TOTAL_TIME)*100;
-    timerFill.style.width = pct+'%';
-    if(pct<30) timerFill.style.background='linear-gradient(to right,#ff4d6d,#ff1744)';
-    else if(pct<60) timerFill.style.background='linear-gradient(to right,var(--gold),#ffab40)';
+    timeEl.textContent=timeLeft;
+    const pct=(timeLeft/TOTAL_TIME)*100;
+    timerFill.style.width=pct+'%';
+    if(pct<30) timerFill.style.background='var(--red-bright)';
+    else if(pct<60) timerFill.style.background='var(--amber)';
     if(timeLeft<=0) endGame();
-  }, 1000);
+  },1000);
 }
 
 function endGame(){
   clearInterval(spawnTimer); clearInterval(tickTimer);
   isPlaying=false;
-  // Hide all targets
   document.querySelectorAll('.target.up').forEach(t=>t.classList.remove('up'));
-
-  setTimeout(()=>showEndScreen(), 400);
+  setTimeout(()=>showEndScreen(),400);
 }
 
 function showEndScreen(){
-  const isNewHS = score > highScore;
-  if(isNewHS){ highScore=score; localStorage.setItem('gmh_highscore', score); }
-  hsEl.textContent = String(highScore).padStart(6,'0');
+  const isNewHS=score>highScore;
+  if(isNewHS){ highScore=score; localStorage.setItem('gmh_highscore',score); }
+  hsEl.textContent=String(highScore).padStart(6,'0');
 
-  const acc = shots>0 ? Math.round((hits/shots)*100) : 0;
-  let grade, gradeColor;
-  if     (score>=500){ grade='S'; gradeColor='#ffd740'; }
-  else if(score>=350){ grade='A'; gradeColor='#00e676'; }
-  else if(score>=200){ grade='B'; gradeColor='#00e5ff'; }
-  else if(score>=100){ grade='C'; gradeColor='#ff9800'; }
-  else               { grade='D'; gradeColor='#ff4d6d'; }
+  const acc=shots>0?Math.round((hits/shots)*100):0;
+  let grade,gradeColor;
+  if     (score>=500){ grade='S'; gradeColor='#c8901a'; }
+  else if(score>=350){ grade='A'; gradeColor='#37895a'; }
+  else if(score>=200){ grade='B'; gradeColor='#3a8ab4'; }
+  else if(score>=100){ grade='C'; gradeColor='#b07820'; }
+  else               { grade='D'; gradeColor='#9a2828'; }
 
-  document.getElementById('endTitle').textContent   = score>=200?'MISSION COMPLETE':'MISSION FAILED';
-  document.getElementById('endTitle').className     = 'end-title '+(score>=200?'victory':'defeat');
-  document.getElementById('endScore').textContent   = score;
-  document.getElementById('endHits').textContent    = hits;
-  document.getElementById('endCombo').textContent   = 'x'+maxCombo;
-  document.getElementById('endAcc').textContent     = acc+'%';
-  document.getElementById('endGrade').textContent   = grade;
-  document.getElementById('endGrade').style.color   = gradeColor;
-  document.getElementById('endGrade').style.textShadow = `0 0 20px ${gradeColor}`;
-  document.getElementById('hsBadge').style.display  = isNewHS?'block':'none';
+  const success=score>=200;
+  document.getElementById('endTitle').textContent =success?'MISSION ACCOMPLISHED':'MISSION FAILED';
+  document.getElementById('endTitle').className   ='report-title '+(success?'success':'failure');
+  document.getElementById('endSubtitle').textContent=success
+    ?'All objectives assessed. Personnel standing by.'
+    :'Insufficient target neutralizations. Re-deploy recommended.';
+  document.getElementById('endScore').textContent =score;
+  document.getElementById('endHits').textContent  =hits;
+  document.getElementById('endCombo').textContent ='×'+maxCombo;
+  document.getElementById('endAcc').textContent   =acc+'%';
+  document.getElementById('hsBadge').style.display=isNewHS?'block':'none';
+
+  const gradeEl=document.getElementById('endGrade');
+  gradeEl.textContent=grade;
+  gradeEl.style.color=gradeColor;
+  gradeEl.style.borderColor=gradeColor;
+  gradeEl.style.background=gradeColor+'18';
 
   endScreen.classList.add('show');
   startBtn.disabled=false;
@@ -1065,38 +1360,38 @@ function showEndScreen(){
 
 function restartGame(){
   endScreen.classList.remove('show');
-  setTimeout(startGame, 200);
+  setTimeout(startGame,200);
 }
 
-startBtn.addEventListener('click', startGame);
+startBtn.addEventListener('click',startGame);
 
-// ─── BACKGROUND CANVAS ────────────────────────────────────────────────────────
-const bgCanvas = document.getElementById('bg');
-const bgCtx    = bgCanvas.getContext('2d');
+// ─── BACKGROUND CANVAS — subtle star field ────────────────────────────────────
+const bgCanvas=document.getElementById('bg');
+const bgCtx=bgCanvas.getContext('2d');
 let stars=[];
 
 function resizeBg(){ bgCanvas.width=window.innerWidth; bgCanvas.height=window.innerHeight; }
 function initStars(){
   stars=[];
-  for(let i=0;i<200;i++) stars.push({
-    x:Math.random()*bgCanvas.width, y:Math.random()*bgCanvas.height,
-    r:Math.random()*1.6+0.2, speed:Math.random()*0.25+0.05,
-    tw:Math.random()*Math.PI*2, tws:Math.random()*0.025+0.01,
-    c:['#fff','#adf','#cef','#ffd','#fcc'][~~(Math.random()*5)]
+  for(let i=0;i<160;i++) stars.push({
+    x:Math.random()*bgCanvas.width,y:Math.random()*bgCanvas.height,
+    r:Math.random()*1.2+0.2,speed:Math.random()*0.2+0.04,
+    tw:Math.random()*Math.PI*2,tws:Math.random()*0.02+0.008,
+    c:['#8899aa','#99aacc','#aabbcc','#778899','#667788'][~~(Math.random()*5)]
   });
 }
 function drawBg(){
   bgCtx.clearRect(0,0,bgCanvas.width,bgCanvas.height);
-  // Nebula
-  [[0.15,0.25,280,'rgba(70,0,160,0.07)'],[0.85,0.75,220,'rgba(0,80,180,0.07)'],
-   [0.5,0.5,350,'rgba(0,150,200,0.04)']].forEach(([cx,cy,r,c])=>{
+  // Very subtle vignette blobs — dark teal atmosphere
+  [[0.2,0.2,250,'rgba(20,40,60,0.06)'],[0.8,0.8,200,'rgba(30,50,70,0.05)'],
+   [0.5,0.5,320,'rgba(10,20,35,0.04)']].forEach(([cx,cy,r,c])=>{
     const g=bgCtx.createRadialGradient(bgCanvas.width*cx,bgCanvas.height*cy,0,bgCanvas.width*cx,bgCanvas.height*cy,r);
     g.addColorStop(0,c); g.addColorStop(1,'transparent');
     bgCtx.fillStyle=g; bgCtx.fillRect(0,0,bgCanvas.width,bgCanvas.height);
   });
   stars.forEach(s=>{
     s.tw+=s.tws;
-    bgCtx.globalAlpha=0.3+0.7*Math.abs(Math.sin(s.tw));
+    bgCtx.globalAlpha=0.15+0.35*Math.abs(Math.sin(s.tw));
     bgCtx.fillStyle=s.c;
     bgCtx.beginPath(); bgCtx.arc(s.x,s.y,s.r,0,Math.PI*2); bgCtx.fill();
     s.y+=s.speed; if(s.y>bgCanvas.height){s.y=0;s.x=Math.random()*bgCanvas.width;}
