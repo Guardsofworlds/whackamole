@@ -1,255 +1,1111 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Galaxy Strike: Sound & Steel</title>
-
+<title>Galactic Mole Hunter — Mission</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
 <style>
-/* =========================
-   CORE STYLES
-========================= */
-body {
-    margin: 0; background: #02020a; overflow: hidden;
-    font-family: 'Segoe UI', sans-serif; cursor: crosshair; color: #0ff; user-select: none;
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --cyan:#00e5ff;--purple:#aa00ff;--red:#ff1744;--green:#00e676;--gold:#ffd740;
+  --bg:#02020e;--panel:rgba(4,10,28,0.92);--border:rgba(0,229,255,0.25);--text:#c8e6ff;
+}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--text);
+  font-family:'Share Tech Mono',monospace;overflow:hidden;cursor:crosshair;user-select:none}
+
+canvas#bg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
+.scanlines{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;
+  background:repeating-linear-gradient(to bottom,transparent 0px,transparent 3px,rgba(0,0,0,0.06) 3px,rgba(0,0,0,0.06) 4px);pointer-events:none}
+
+/* ── LAYOUT ── */
+#wrap{position:relative;z-index:2;display:flex;height:100vh;padding:18px;gap:18px}
+
+/* ── LEFT SIDEBAR ── */
+.sidebar-left{
+  width:200px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;
+  background:var(--panel);border:1px solid var(--border);border-radius:16px;
+  padding:18px 14px;backdrop-filter:blur(20px);
+}
+.sidebar-title{
+  font-family:'Orbitron',sans-serif;font-size:0.65rem;letter-spacing:4px;
+  color:var(--cyan);text-transform:uppercase;text-align:center;opacity:0.8;
+  padding-bottom:10px;border-bottom:1px solid var(--border);
+}
+.stat-block{
+  background:rgba(0,229,255,0.04);border:1px solid var(--border);border-radius:10px;
+  padding:10px 12px;display:flex;flex-direction:column;gap:3px;
+}
+.stat-label{font-size:0.58rem;letter-spacing:3px;color:var(--cyan);opacity:0.6;text-transform:uppercase}
+.stat-value{
+  font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:700;color:#fff;
+  text-shadow:0 0 12px var(--cyan);line-height:1;
+}
+.stat-value.red{color:#ff4d6d;text-shadow:0 0 12px #ff4d6d}
+.stat-value.gold{color:var(--gold);text-shadow:0 0 12px var(--gold)}
+
+#timerBar{
+  width:100%;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;margin-top:4px;
+}
+#timerFill{height:100%;width:100%;background:linear-gradient(to right,var(--cyan),#00aaff);
+  border-radius:3px;transition:width 0.9s linear,background 0.5s;}
+
+.combo-display{
+  text-align:center;padding:8px;background:rgba(255,215,64,0.05);
+  border:1px solid rgba(255,215,64,0.2);border-radius:10px;
+}
+.combo-label{font-size:0.55rem;letter-spacing:3px;color:var(--gold);opacity:0.7}
+.combo-value{font-family:'Orbitron',sans-serif;font-size:1.8rem;color:var(--gold);
+  text-shadow:0 0 20px var(--gold);line-height:1.1}
+
+#startBtn{
+  margin-top:auto;font-family:'Orbitron',sans-serif;font-size:0.8rem;font-weight:700;
+  letter-spacing:3px;color:#000;background:var(--cyan);border:none;
+  padding:14px 10px;border-radius:10px;cursor:pointer;text-transform:uppercase;
+  box-shadow:0 0 20px rgba(0,229,255,0.4);transition:all 0.2s;
+  position:relative;overflow:hidden;
+}
+#startBtn::before{content:'';position:absolute;top:-50%;left:-75%;width:50%;height:200%;
+  background:rgba(255,255,255,0.35);transform:skewX(-20deg);
+  animation:btnShine 3s ease-in-out infinite}
+@keyframes btnShine{0%,70%,100%{left:-75%}40%{left:130%}}
+#startBtn:hover{background:#fff;box-shadow:0 0 40px rgba(0,229,255,0.8)}
+#startBtn:disabled{opacity:0.4;cursor:not-allowed}
+
+/* ── GAME GRID ── */
+#game{
+  flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+  gap:18px;padding:18px;
+  background:radial-gradient(ellipse at center,rgba(0,100,200,0.06) 0%,transparent 70%);
+  border-radius:20px;border:1px solid var(--border);backdrop-filter:blur(4px);
 }
 
-.star { position: absolute; width: 2px; height: 2px; background: white; opacity: 0.5; animation: fall linear infinite; z-index: -1; }
-@keyframes fall { from { transform: translateY(-10vh); } to { transform: translateY(110vh); } }
-
-#wrap { display: flex; height: 100vh; padding: 25px; gap: 25px; box-sizing: border-box; }
-
-/* GAME GRID */
-#game {
-    flex: 2.5; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
-    gap: 20px; background: radial-gradient(circle, rgba(0,255,255,0.08), transparent);
-    border-radius: 40px; padding: 30px; box-shadow: inset 0 0 100px #000;
+/* ── HOLES ── */
+.hole{
+  position:relative;border-radius:50%;overflow:visible;
+  background:radial-gradient(ellipse at 40% 35%,#0a0e22 0%,#030510 60%,#000 100%);
+  border:3px solid #0a0e30;
+  box-shadow:inset 0 8px 30px rgba(0,0,0,0.9),inset 0 -4px 15px rgba(0,100,200,0.08),
+             0 0 0 1px rgba(0,100,200,0.15);
+}
+/* Hole rim glow */
+.hole::after{
+  content:'';position:absolute;inset:-3px;border-radius:50%;
+  background:transparent;border:3px solid rgba(0,229,255,0.06);
+  pointer-events:none;
 }
 
-.hole {
-    position: relative; border-radius: 50%; overflow: hidden;
-    background: radial-gradient(circle at 30% 30%, #112, #000);
-    border: 5px solid #1a1a2e; box-shadow: inset 0 20px 40px #000;
+/* ── TARGETS (3D CSS figures) ── */
+.target{
+  position:absolute;bottom:-115%;left:50%;transform:translateX(-50%) scale(0.85);
+  width:90px;height:108px;
+  transition:bottom 0.32s cubic-bezier(.175,.885,.32,1.275),transform 0.32s;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,0.8));
+  cursor:pointer;
+  transform-style:preserve-3d;
+}
+.target.up{bottom:6%;transform:translateX(-50%) scale(1)}
+.target svg{width:100%;height:100%;filter:drop-shadow(0 0 6px rgba(0,0,0,0.6))}
+
+/* hit flash */
+.target.hit-flash{animation:hitFlash 0.15s ease-out}
+@keyframes hitFlash{0%{filter:brightness(3) saturate(0)}100%{filter:brightness(1) saturate(1)}}
+
+/* boss glow */
+.target.is-boss svg{filter:drop-shadow(0 0 10px gold) drop-shadow(0 0 20px gold)}
+
+/* ── RIGHT SIDEBAR ── */
+.sidebar-right{
+  width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;
+  background:var(--panel);border:1px solid var(--border);border-radius:16px;
+  padding:18px 14px;backdrop-filter:blur(20px);
 }
 
-/* =========================
-   IMPROVED TARGETS
-========================= */
-.target {
-    position: absolute; bottom: -150%; left: 50%; transform: translateX(-50%) scale(0.7);
-    width: 115px; height: 115px; border-radius: 40% 40% 45% 45%;
-    transition: bottom 0.35s cubic-bezier(.175, .885, .32, 1.275);
-    border: 2px solid rgba(255,255,255,0.1);
+.feed-header{
+  font-family:'Orbitron',sans-serif;font-size:0.65rem;letter-spacing:4px;
+  color:var(--green);text-transform:uppercase;text-align:center;opacity:0.9;
+  padding-bottom:10px;border-bottom:1px solid rgba(0,230,118,0.2);
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.feed-dot{width:6px;height:6px;background:var(--green);border-radius:50%;
+  animation:feedPulse 1.2s ease-in-out infinite}
+@keyframes feedPulse{0%,100%{box-shadow:0 0 4px var(--green)}50%{box-shadow:0 0 12px var(--green),0 0 20px var(--green)}}
+
+#feed{
+  flex:1;overflow:hidden;display:flex;flex-direction:column;gap:4px;
+  min-height:0;
+}
+.feed-entry{
+  padding:5px 8px;border-radius:6px;font-size:0.72rem;letter-spacing:1px;
+  border-left:3px solid;line-height:1.4;
+  animation:feedSlide 0.3s ease-out;
+}
+@keyframes feedSlide{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
+.feed-entry.hit{color:#7fffb2;border-color:#00e676;background:rgba(0,230,118,0.06)}
+.feed-entry.miss{color:#ff8a9b;border-color:#ff1744;background:rgba(255,23,68,0.06)}
+.feed-entry.info{color:#80d8ff;border-color:#00b0ff;background:rgba(0,176,255,0.06)}
+.feed-entry.boss{color:var(--gold);border-color:var(--gold);background:rgba(255,215,64,0.06)}
+.feed-entry.warn{color:#ffab40;border-color:#ff6d00;background:rgba(255,109,0,0.06)}
+
+.enemy-legend{display:flex;flex-direction:column;gap:6px}
+.legend-title{font-size:0.55rem;letter-spacing:3px;color:var(--cyan);opacity:0.6;margin-bottom:2px}
+.legend-row{
+  display:flex;align-items:center;gap:8px;padding:5px 8px;
+  background:rgba(0,229,255,0.03);border-radius:8px;border:1px solid rgba(255,255,255,0.04);
+}
+.legend-icon{width:28px;height:28px;flex-shrink:0}
+.legend-icon svg{width:100%;height:100%}
+.legend-info{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+.legend-name{font-size:0.68rem;color:#e0f0ff;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.legend-pts{font-family:'Orbitron',sans-serif;font-size:0.7rem;color:var(--gold);
+  text-shadow:0 0 8px var(--gold)}
+
+/* ── VFX LAYER ── */
+#vfx{position:fixed;top:0;left:0;width:100%;height:100%;z-index:10;pointer-events:none}
+
+/* Laser ray */
+.laser-ray{
+  position:absolute;pointer-events:none;transform-origin:0 50%;
+  height:3px;border-radius:2px;
+  background:linear-gradient(to right,rgba(255,255,255,0.9),rgba(0,229,255,0.6),transparent);
+  box-shadow:0 0 6px var(--cyan),0 0 12px var(--cyan),0 0 24px rgba(0,229,255,0.5);
+  animation:laserFade 0.25s ease-out forwards;
+}
+@keyframes laserFade{0%{opacity:1;transform:scaleY(1)}100%{opacity:0;transform:scaleY(0.5)}}
+
+/* Hit burst */
+.hit-burst{
+  position:absolute;pointer-events:none;
+  width:60px;height:60px;margin:-30px 0 0 -30px;
+  border-radius:50%;
+  animation:burstOut 0.4s ease-out forwards;
+}
+@keyframes burstOut{
+  0%{transform:scale(0.2);opacity:1}
+  60%{transform:scale(1.4);opacity:0.7}
+  100%{transform:scale(2);opacity:0}
 }
 
-.target.up { bottom: 8%; transform: translateX(-50%) scale(1); }
-
-/* IMPROVED T-VISOR CLONE */
-.clone {
-    background: #e6e6e6;
-    background-image: 
-        linear-gradient(to bottom, #fff, #999), /* Helmet shine */
-        linear-gradient(black, black), /* Horizontal visor */
-        linear-gradient(black, black), /* Vertical visor stem */
-        radial-gradient(circle at 50% 40%, #00faff 5%, transparent 40%); /* Visor glow */
-    background-size: 100% 100%, 70% 12%, 14% 35%, 100% 100%;
-    background-position: center, center 35%, center 55%, center;
-    background-repeat: no-repeat;
-    border-bottom: 8px solid #0055aa; /* Blue legion marking */
+/* Score pop */
+.score-pop{
+  position:absolute;pointer-events:none;
+  font-family:'Orbitron',sans-serif;font-size:1.2rem;font-weight:700;
+  text-shadow:0 0 10px currentColor;
+  animation:popUp 0.9s cubic-bezier(.175,.885,.32,1.275) forwards;
+  white-space:nowrap;
+}
+@keyframes popUp{
+  0%{transform:translateY(0) scale(0.5);opacity:1}
+  60%{transform:translateY(-40px) scale(1.1);opacity:1}
+  100%{transform:translateY(-80px) scale(0.8);opacity:0}
 }
 
-.trooper {
-    background: #fff;
-    background-image: radial-gradient(circle at 30% 45%, #111 12%, transparent 13%), radial-gradient(circle at 70% 45%, #111 12%, transparent 13%);
+/* Spark particles */
+.spark{
+  position:absolute;pointer-events:none;width:4px;height:4px;border-radius:50%;
+  animation:sparkFly var(--dur,0.5s) ease-out forwards;
+}
+@keyframes sparkFly{
+  0%{transform:translate(0,0) scale(1);opacity:1}
+  100%{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0}
 }
 
-.sith {
-    background: #300;
-    background-image: radial-gradient(circle at 30% 45%, #ff0 8%, #f00 15%, transparent 16%), radial-gradient(circle at 70% 45%, #ff0 8%, #f00 15%, transparent 16%);
+/* Light beam from hole */
+.light-beam{
+  position:absolute;left:50%;bottom:50%;transform:translateX(-50%);
+  width:50px;transform-origin:bottom center;
+  pointer-events:none;
+  animation:beamPulse 0.5s ease-out forwards;
+}
+@keyframes beamPulse{
+  0%{opacity:0;transform:translateX(-50%) scaleY(0)}
+  30%{opacity:1;transform:translateX(-50%) scaleY(1)}
+  100%{opacity:0;transform:translateX(-50%) scaleY(1.2)}
 }
 
-.is-boss { border: 5px solid #ffd700 !important; box-shadow: 0 0 35px #ffd700; }
+/* ── END SCREEN ── */
+#endScreen{
+  display:none;position:fixed;inset:0;z-index:100;
+  background:rgba(1,1,15,0.92);backdrop-filter:blur(16px);
+  flex-direction:column;align-items:center;justify-content:center;gap:0;
+}
+#endScreen.show{display:flex}
 
-/* UI ELEMENTS */
-.sidebar {
-    flex: 1; display: flex; flex-direction: column; gap: 15px; padding: 25px;
-    background: rgba(10,15,30,0.9); border-radius: 25px; border: 2px solid #0ff3; backdrop-filter: blur(15px);
+.end-card{
+  background:rgba(4,10,30,0.95);border:1px solid var(--border);border-radius:24px;
+  padding:48px 56px;display:flex;flex-direction:column;align-items:center;gap:20px;
+  box-shadow:0 0 60px rgba(0,229,255,0.15),0 0 120px rgba(0,229,255,0.06);
+  max-width:500px;width:90%;
+  animation:cardIn 0.6s cubic-bezier(.175,.885,.32,1.275) forwards;
+}
+@keyframes cardIn{from{transform:scale(0.8) translateY(30px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+
+.end-title{
+  font-family:'Orbitron',sans-serif;font-size:clamp(1.6rem,4vw,2.8rem);font-weight:900;
+  letter-spacing:6px;text-transform:uppercase;text-align:center;line-height:1.1;
+}
+.end-title.victory{color:#fff;text-shadow:0 0 20px var(--cyan),0 0 50px var(--cyan)}
+.end-title.defeat{color:#ff4d6d;text-shadow:0 0 20px #ff4d6d,0 0 50px #ff4d6d}
+
+.end-score{
+  font-family:'Orbitron',sans-serif;font-size:clamp(3rem,8vw,5rem);font-weight:900;
+  color:var(--gold);text-shadow:0 0 30px var(--gold),0 0 60px rgba(255,215,64,0.4);
+  line-height:1;
+}
+.end-score-label{font-size:0.7rem;letter-spacing:4px;color:var(--cyan);opacity:0.7;margin-top:-8px}
+
+.end-divider{width:100%;height:1px;background:linear-gradient(to right,transparent,var(--cyan),transparent);opacity:0.4}
+
+.end-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%}
+.end-stat{
+  background:rgba(0,229,255,0.04);border:1px solid var(--border);border-radius:10px;
+  padding:12px;text-align:center;
+}
+.end-stat-label{font-size:0.6rem;letter-spacing:3px;color:var(--cyan);opacity:0.6;margin-bottom:4px}
+.end-stat-value{font-family:'Orbitron',sans-serif;font-size:1.2rem;color:#fff;text-shadow:0 0 10px var(--cyan)}
+
+.end-grade{
+  font-family:'Orbitron',sans-serif;font-size:3.5rem;font-weight:900;
+  width:80px;height:80px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  border:3px solid;
 }
 
-.stat-card { background: #0006; padding: 12px; border-radius: 12px; border-left: 5px solid #0ff; display: flex; justify-content: space-between; font-weight: bold; }
-.stat-val { font-size: 1.3rem; color: #fff; text-shadow: 0 0 10px #0ff; }
-
-#feed { flex-grow: 1; background: #0005; border-radius: 12px; padding: 10px; font-family: monospace; font-size: 0.8rem; overflow: hidden; color: #0fa; }
-.feed-entry { margin-bottom: 4px; border-bottom: 1px solid #0ff1; }
-
-.lux-btn {
-    background: linear-gradient(#0ff, #0088cc); border: none; border-radius: 15px; color: #000;
-    font-weight: 900; font-size: 1.2rem; padding: 18px; cursor: pointer;
-    box-shadow: 0 6px 0 #004466; transition: 0.1s;
+.end-buttons{display:flex;gap:14px;margin-top:8px;flex-wrap:wrap;justify-content:center}
+.end-btn{
+  font-family:'Orbitron',sans-serif;font-size:0.8rem;font-weight:700;letter-spacing:3px;
+  padding:14px 28px;border-radius:10px;cursor:pointer;text-transform:uppercase;
+  border:none;transition:all 0.2s;
 }
-.lux-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #004466; }
-
-/* VFX */
-.spawn-flare {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    width: 0; height: 0; background: #0ff; border-radius: 50%;
-    animation: flare 0.4s ease-out forwards; pointer-events: none;
+.end-btn.primary{
+  background:var(--cyan);color:#000;
+  box-shadow:0 0 20px rgba(0,229,255,0.4);
 }
-@keyframes flare { 0% { width: 0; height: 0; opacity: 1; } 100% { width: 140px; height: 140px; opacity: 0; } }
+.end-btn.primary:hover{background:#fff;box-shadow:0 0 40px rgba(0,229,255,0.8)}
+.end-btn.secondary{
+  background:rgba(255,255,255,0.06);color:var(--text);border:1px solid var(--border);
+}
+.end-btn.secondary:hover{background:rgba(0,229,255,0.1);border-color:var(--cyan)}
+
+/* new highscore badge */
+.hs-badge{
+  font-size:0.7rem;letter-spacing:3px;color:var(--gold);
+  padding:6px 16px;border:1px solid var(--gold);border-radius:20px;
+  background:rgba(255,215,64,0.08);text-transform:uppercase;
+  animation:hsBlink 0.8s ease-in-out infinite alternate;
+}
+@keyframes hsBlink{from{box-shadow:0 0 8px var(--gold)}to{box-shadow:0 0 24px var(--gold),0 0 40px rgba(255,215,64,0.3)}}
 </style>
 </head>
 <body>
 
+<canvas id="bg"></canvas>
+<div class="scanlines"></div>
+<div id="vfx"></div>
+
 <div id="wrap">
-    <div class="sidebar">
-        <h2 style="margin:0">COMMAND</h2>
-        <div class="stat-card">Score <span id="score" class="stat-val">0</span></div>
-        <div class="stat-card">Quota <span style="color:#f0f" class="stat-val">100</span></div>
-        <div class="stat-card">Time <span id="time" class="stat-val">30s</span></div>
-        
-        <div id="quests">
-            <h4 style="margin:5px 0">CAREER</h4>
-            <div id="questList"></div>
+  <!-- LEFT PANEL -->
+  <div class="sidebar-left">
+    <div class="sidebar-title">Mission Control</div>
+
+    <div class="stat-block">
+      <span class="stat-label">Score</span>
+      <span class="stat-value" id="scoreEl">0</span>
+    </div>
+
+    <div class="stat-block">
+      <span class="stat-label">Time Remaining</span>
+      <span class="stat-value red" id="timeEl">60</span>
+      <div id="timerBar"><div id="timerFill"></div></div>
+    </div>
+
+    <div class="stat-block">
+      <span class="stat-label">Hits</span>
+      <span class="stat-value" id="hitsEl">0</span>
+    </div>
+
+    <div class="combo-display">
+      <div class="combo-label">Combo</div>
+      <div class="combo-value" id="comboEl">x1</div>
+    </div>
+
+    <div class="stat-block">
+      <span class="stat-label">High Score</span>
+      <span class="stat-value gold" id="hsEl">000000</span>
+    </div>
+
+    <button id="startBtn">▶ Start</button>
+  </div>
+
+  <!-- GAME GRID -->
+  <div id="game"></div>
+
+  <!-- RIGHT PANEL -->
+  <div class="sidebar-right">
+    <div class="feed-header">
+      <div class="feed-dot"></div>
+      Combat Log
+      <div class="feed-dot"></div>
+    </div>
+    <div id="feed"></div>
+
+    <div class="enemy-legend">
+      <div class="legend-title">Enemy Roster</div>
+
+      <div class="legend-row">
+        <div class="legend-icon" id="li-trooper"></div>
+        <div class="legend-info">
+          <div class="legend-name">Stormtrooper</div>
+          <div class="legend-pts">+10 pts</div>
         </div>
-        <button id="startBtn" class="lux-btn">INITIALIZE</button>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon" id="li-clone"></div>
+        <div class="legend-info">
+          <div class="legend-name">Clone Trooper</div>
+          <div class="legend-pts">+10 pts</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon" id="li-xenomorph"></div>
+        <div class="legend-info">
+          <div class="legend-name">Xenomorph</div>
+          <div class="legend-pts">+20 pts</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon" id="li-r2d2"></div>
+        <div class="legend-info">
+          <div class="legend-name">R2-D2</div>
+          <div class="legend-pts">+20 pts</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon" id="li-yoda"></div>
+        <div class="legend-info">
+          <div class="legend-name">Yoda</div>
+          <div class="legend-pts">+30 pts</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon" id="li-boba"></div>
+        <div class="legend-info">
+          <div class="legend-name">Boba Fett</div>
+          <div class="legend-pts">+30 pts</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon" id="li-predator"></div>
+        <div class="legend-info">
+          <div class="legend-name">Predator</div>
+          <div class="legend-pts">+40 pts</div>
+        </div>
+      </div>
+      <div class="legend-row">
+        <div class="legend-icon" id="li-vader"></div>
+        <div class="legend-info">
+          <div class="legend-name">Darth Vader</div>
+          <div class="legend-pts" style="color:#ff4d6d;text-shadow:0 0 8px #ff4d6d">+50 pts ★</div>
+        </div>
+      </div>
     </div>
+  </div>
+</div>
 
-    <div id="game"></div>
-
-    <div class="sidebar">
-        <h2 style="margin:0">LOGS</h2>
-        <div id="feed"></div>
+<!-- END SCREEN -->
+<div id="endScreen">
+  <div class="end-card">
+    <div class="end-title" id="endTitle">MISSION COMPLETE</div>
+    <div class="end-score" id="endScore">0</div>
+    <div class="end-score-label">FINAL SCORE</div>
+    <div id="hsBadge" class="hs-badge" style="display:none">★ NEW HIGH SCORE ★</div>
+    <div class="end-divider"></div>
+    <div class="end-stats">
+      <div class="end-stat"><div class="end-stat-label">Hits</div><div class="end-stat-value" id="endHits">0</div></div>
+      <div class="end-stat"><div class="end-stat-label">Best Combo</div><div class="end-stat-value" id="endCombo">x1</div></div>
+      <div class="end-stat"><div class="end-stat-label">Accuracy</div><div class="end-stat-value" id="endAcc">0%</div></div>
+      <div class="end-stat"><div class="end-stat-label">Grade</div><div class="end-stat-value" id="endGrade">—</div></div>
     </div>
+    <div class="end-buttons">
+      <button class="end-btn primary" onclick="restartGame()">↺ Play Again</button>
+      <button class="end-btn secondary" onclick="window.location.href='index.html'">← Lobby</button>
+    </div>
+  </div>
 </div>
 
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-    // --- AUDIO ENGINE ---
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    
-    function playSound(freq, type, duration, vol=0.1) {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + duration);
-        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(); osc.stop(audioCtx.currentTime + duration);
-    }
+// ─── SVG LIBRARY ─────────────────────────────────────────────────────────────
+const SVGS = {
+  trooper: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="tg1" cx="35%" cy="30%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#bbb"/></radialGradient>
+    <radialGradient id="tg2" cx="35%" cy="30%"><stop offset="0%" stop-color="#ddd"/><stop offset="100%" stop-color="#999"/></radialGradient>
+    <filter id="tf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity="0.6"/></filter>
+  </defs>
+  <g filter="url(#tf)">
+  <!-- Body -->
+  <ellipse cx="50" cy="80" rx="30" ry="28" fill="url(#tg2)" stroke="#888" stroke-width="1"/>
+  <!-- Chest plate lines -->
+  <path d="M30 68 Q50 64 70 68 L68 82 Q50 86 32 82 Z" fill="#ccc" stroke="#aaa" stroke-width="0.5"/>
+  <line x1="50" y1="66" x2="50" y2="84" stroke="#999" stroke-width="0.8"/>
+  <line x1="35" y1="74" x2="65" y2="74" stroke="#aaa" stroke-width="0.8"/>
+  <!-- Neck -->
+  <rect x="44" y="42" width="12" height="10" rx="3" fill="#ccc" stroke="#aaa"/>
+  <!-- Helmet -->
+  <ellipse cx="50" cy="34" rx="26" ry="26" fill="url(#tg1)" stroke="#ccc" stroke-width="1.5"/>
+  <!-- Helmet top ridge -->
+  <path d="M24 34 Q50 8 76 34" fill="none" stroke="#ddd" stroke-width="2"/>
+  <!-- Visor band -->
+  <rect x="24" y="32" width="52" height="12" rx="3" fill="#111" stroke="#333"/>
+  <!-- Visor T-bar -->
+  <rect x="46" y="32" width="8" height="12" rx="1" fill="#0a0a0a"/>
+  <!-- Eye lenses -->
+  <ellipse cx="36" cy="38" rx="8" ry="5" fill="#222"/>
+  <ellipse cx="64" cy="38" rx="8" ry="5" fill="#222"/>
+  <ellipse cx="36" cy="38" rx="5" ry="3" fill="#333" opacity="0.8"/>
+  <ellipse cx="64" cy="38" rx="5" ry="3" fill="#333" opacity="0.8"/>
+  <!-- Highlight on visor -->
+  <ellipse cx="33" cy="36" rx="2" ry="1.5" fill="#fff" opacity="0.3"/>
+  <ellipse cx="61" cy="36" rx="2" ry="1.5" fill="#fff" opacity="0.3"/>
+  <!-- Chin vent -->
+  <path d="M38 44 Q50 48 62 44" fill="none" stroke="#aaa" stroke-width="1"/>
+  <!-- Legs -->
+  <rect x="32" y="104" width="15" height="14" rx="4" fill="#bbb" stroke="#999"/>
+  <rect x="53" y="104" width="15" height="14" rx="4" fill="#bbb" stroke="#999"/>
+  <!-- Knee pads -->
+  <ellipse cx="39" cy="106" rx="7" ry="4" fill="#ccc"/>
+  <ellipse cx="60" cy="106" rx="7" ry="4" fill="#ccc"/>
+  </g></svg>`,
 
-    const game = document.getElementById("game");
-    const scoreEl = document.getElementById("score");
-    const timeEl = document.getElementById("time");
-    const startBtn = document.getElementById("startBtn");
-    const feed = document.getElementById("feed");
-    const questList = document.getElementById("questList");
+  clone: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="cg1" cx="35%" cy="25%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#d0e8ff"/></radialGradient>
+    <radialGradient id="cg2" cx="35%" cy="30%"><stop offset="0%" stop-color="#e0f0ff"/><stop offset="100%" stop-color="#a0c8e8"/></radialGradient>
+    <filter id="cf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity="0.6"/></filter>
+  </defs>
+  <g filter="url(#cf)">
+  <ellipse cx="50" cy="80" rx="30" ry="28" fill="url(#cg2)" stroke="#88aacc" stroke-width="1"/>
+  <path d="M30 68 Q50 64 70 68 L68 82 Q50 86 32 82 Z" fill="#cce4ff" stroke="#99bbdd" stroke-width="0.5"/>
+  <!-- Blue legion stripe -->
+  <path d="M30 68 Q50 63 70 68 L70 72 Q50 68 30 72 Z" fill="#0066cc" opacity="0.8"/>
+  <line x1="50" y1="66" x2="50" y2="84" stroke="#88aacc" stroke-width="0.8"/>
+  <rect x="44" y="42" width="12" height="10" rx="3" fill="#d0e8ff" stroke="#88aacc"/>
+  <ellipse cx="50" cy="34" rx="26" ry="26" fill="url(#cg1)" stroke="#bbddff" stroke-width="1.5"/>
+  <path d="M24 34 Q50 8 76 34" fill="none" stroke="#ddeeff" stroke-width="2"/>
+  <!-- T-visor -->
+  <rect x="24" y="30" width="52" height="14" rx="3" fill="#111" stroke="#333"/>
+  <rect x="44" y="30" width="12" height="14" rx="2" fill="#080808"/>
+  <ellipse cx="36" cy="37" rx="8" ry="5" fill="#1a3a5a"/>
+  <ellipse cx="64" cy="37" rx="8" ry="5" fill="#1a3a5a"/>
+  <ellipse cx="34" cy="35" rx="2" ry="1.5" fill="#4488ff" opacity="0.6"/>
+  <ellipse cx="62" cy="35" rx="2" ry="1.5" fill="#4488ff" opacity="0.6"/>
+  <!-- Blue chin stripe -->
+  <rect x="38" y="44" width="24" height="4" rx="2" fill="#0044aa" opacity="0.9"/>
+  <rect x="32" y="104" width="15" height="14" rx="4" fill="#d0e8ff" stroke="#88aacc"/>
+  <rect x="53" y="104" width="15" height="14" rx="4" fill="#d0e8ff" stroke="#88aacc"/>
+  <rect x="34" y="96" width="11" height="8" rx="2" fill="#0044aa" opacity="0.7"/>
+  <rect x="55" y="96" width="11" height="8" rx="2" fill="#0044aa" opacity="0.7"/>
+  </g></svg>`,
 
-    let score = 0; let time = 30; let isPlaying = false;
-    let spawnLoop, timerLoop;
-    const WIN_QUOTA = 100;
+  xenomorph: `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="xg1" cx="40%" cy="30%"><stop offset="0%" stop-color="#1a2e1a"/><stop offset="100%" stop-color="#050f05"/></radialGradient>
+    <filter id="xf"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#003300" flood-opacity="0.5"/></filter>
+    <linearGradient id="xridge" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#2a4a2a"/><stop offset="100%" stop-color="#050d05"/></linearGradient>
+  </defs>
+  <g filter="url(#xf)">
+  <!-- Elongated head -->
+  <path d="M32 50 Q28 20 50 8 Q72 20 68 50 Q75 75 70 90 Q55 100 45 100 Q30 95 25 75 Z" fill="url(#xg1)" stroke="#1a3a1a" stroke-width="1.5"/>
+  <!-- Head ridge -->
+  <path d="M50 8 L50 55" stroke="url(#xridge)" stroke-width="5" stroke-linecap="round"/>
+  <!-- Side ridges -->
+  <path d="M50 8 Q38 22 32 42" fill="none" stroke="#1a3a1a" stroke-width="2"/>
+  <path d="M50 8 Q62 22 68 42" fill="none" stroke="#1a3a1a" stroke-width="2"/>
+  <!-- Eyes (glowing) -->
+  <ellipse cx="38" cy="55" rx="9" ry="7" fill="#0a1a0a"/>
+  <ellipse cx="38" cy="55" rx="6" ry="5" fill="#0e2a0e"/>
+  <ellipse cx="38" cy="54" rx="3.5" ry="3" fill="#44ff44" opacity="0.5"/>
+  <ellipse cx="37" cy="53" rx="1.5" ry="1.5" fill="#aaffaa" opacity="0.7"/>
+  <ellipse cx="62" cy="55" rx="9" ry="7" fill="#0a1a0a"/>
+  <ellipse cx="62" cy="55" rx="6" ry="5" fill="#0e2a0e"/>
+  <ellipse cx="62" cy="54" rx="3.5" ry="3" fill="#44ff44" opacity="0.5"/>
+  <ellipse cx="61" cy="53" rx="1.5" ry="1.5" fill="#aaffaa" opacity="0.7"/>
+  <!-- Inner jaw teeth -->
+  <path d="M38 76 Q50 82 62 76" fill="none" stroke="#2a5a2a" stroke-width="1.5"/>
+  <line x1="42" y1="77" x2="41" y2="84" stroke="#1a4a1a" stroke-width="1.5"/>
+  <line x1="50" y1="78" x2="50" y2="86" stroke="#1a4a1a" stroke-width="2"/>
+  <line x1="58" y1="77" x2="59" y2="84" stroke="#1a4a1a" stroke-width="1.5"/>
+  <!-- Body -->
+  <path d="M30 98 Q24 118 28 126 Q50 132 72 126 Q76 118 70 98 Q55 106 45 106 Z" fill="#0a180a" stroke="#1a3a1a"/>
+  <!-- Rib segmentation -->
+  <path d="M34 104 Q50 100 66 104" fill="none" stroke="#1a3a1a" stroke-width="1"/>
+  <path d="M32 112 Q50 107 68 112" fill="none" stroke="#1a3a1a" stroke-width="1"/>
+  <path d="M34 120 Q50 116 66 120" fill="none" stroke="#1a3a1a" stroke-width="1"/>
+  </g></svg>`,
 
-    let career = JSON.parse(localStorage.getItem("galaxyEliteV3")) || { kills: 0, sith: 0, bosses: 0 };
+  r2d2: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="rg1" cx="35%" cy="25%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#c8d8f0"/></radialGradient>
+    <radialGradient id="rg2" cx="30%" cy="30%"><stop offset="0%" stop-color="#3355bb"/><stop offset="100%" stop-color="#1122aa"/></radialGradient>
+    <radialGradient id="rg3" cx="30%" cy="25%"><stop offset="0%" stop-color="#88aaff"/><stop offset="100%" stop-color="#2244cc"/></radialGradient>
+    <filter id="rf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000055" flood-opacity="0.5"/></filter>
+  </defs>
+  <g filter="url(#rf)">
+  <!-- Dome head -->
+  <ellipse cx="50" cy="30" rx="28" ry="26" fill="url(#rg1)" stroke="#aabbdd" stroke-width="1.5"/>
+  <!-- Blue head stripe -->
+  <path d="M23 30 Q50 5 77 30 L77 36 Q50 12 23 36 Z" fill="url(#rg2)" opacity="0.9"/>
+  <!-- Main eye lens -->
+  <circle cx="50" cy="38" r="11" fill="#1a1a2a" stroke="#4488ff" stroke-width="2"/>
+  <circle cx="50" cy="38" r="8" fill="#223388"/>
+  <circle cx="50" cy="38" r="5" fill="url(#rg3)"/>
+  <circle cx="50" cy="38" r="2" fill="#aaccff"/>
+  <circle cx="48" cy="36" r="1" fill="#fff" opacity="0.7"/>
+  <!-- Periscope/sensors -->
+  <circle cx="34" cy="24" r="4" fill="#4488ff" stroke="#aaccff" stroke-width="1"/>
+  <circle cx="34" cy="24" r="2" fill="#88aaff"/>
+  <!-- Body cylinder -->
+  <rect x="20" y="54" width="60" height="50" rx="8" fill="url(#rg1)" stroke="#aabbdd" stroke-width="1.5"/>
+  <!-- Blue body panels -->
+  <rect x="20" y="54" width="60" height="12" rx="4" fill="url(#rg2)" opacity="0.9"/>
+  <!-- Chest panel -->
+  <rect x="28" y="70" width="20" height="16" rx="3" fill="#223388" stroke="#4488ff" stroke-width="1"/>
+  <circle cx="33" cy="76" r="3" fill="#ff4444"/>
+  <circle cx="42" cy="76" r="3" fill="#44ff44"/>
+  <circle cx="33" cy="83" r="2.5" fill="#4444ff"/>
+  <circle cx="42" cy="83" r="2.5" fill="#ffff44"/>
+  <!-- Side panel -->
+  <rect x="52" y="70" width="22" height="16" rx="3" fill="#c8d8ff"/>
+  <line x1="54" y1="75" x2="72" y2="75" stroke="#4488ff" stroke-width="1.5"/>
+  <line x1="54" y1="80" x2="72" y2="80" stroke="#4488ff" stroke-width="1.5"/>
+  <line x1="54" y1="85" x2="72" y2="85" stroke="#4488ff" stroke-width="1"/>
+  <!-- Bottom stripe -->
+  <rect x="20" y="98" width="60" height="6" rx="3" fill="url(#rg2)" opacity="0.8"/>
+  <!-- Feet stumps -->
+  <rect x="28" y="104" width="16" height="10" rx="4" fill="#c8d8ff" stroke="#aabbdd"/>
+  <rect x="56" y="104" width="16" height="10" rx="4" fill="#c8d8ff" stroke="#aabbdd"/>
+  </g></svg>`,
 
-    function log(msg, color="#0fa") {
-        const div = document.createElement("div"); div.className = "feed-entry";
-        div.style.color = color; div.textContent = `> ${msg}`;
-        feed.prepend(div);
-        if(feed.children.length > 15) feed.lastChild.remove();
-    }
+  yoda: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="yg1" cx="35%" cy="30%"><stop offset="0%" stop-color="#8acc6a"/><stop offset="100%" stop-color="#4a8a2a"/></radialGradient>
+    <radialGradient id="yg2" cx="40%" cy="35%"><stop offset="0%" stop-color="#6aaa4a"/><stop offset="100%" stop-color="#3a7020"/></radialGradient>
+    <filter id="yf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#002200" flood-opacity="0.5"/></filter>
+  </defs>
+  <g filter="url(#yf)">
+  <!-- Ears -->
+  <path d="M14 44 Q8 34 10 24 Q14 14 22 20 L28 40 Z" fill="url(#yg2)" stroke="#3a7020" stroke-width="1.5"/>
+  <path d="M86 44 Q92 34 90 24 Q86 14 78 20 L72 40 Z" fill="url(#yg2)" stroke="#3a7020" stroke-width="1.5"/>
+  <!-- Ear inner detail -->
+  <path d="M18 38 Q14 28 17 22" fill="none" stroke="#5a9a3a" stroke-width="1.5"/>
+  <path d="M82 38 Q86 28 83 22" fill="none" stroke="#5a9a3a" stroke-width="1.5"/>
+  <!-- Head -->
+  <ellipse cx="50" cy="40" rx="32" ry="34" fill="url(#yg1)" stroke="#4a8a2a" stroke-width="1.5"/>
+  <!-- Forehead wrinkles -->
+  <path d="M32 28 Q42 24 58 28" fill="none" stroke="#3a7020" stroke-width="1.5"/>
+  <path d="M28 34 Q38 30 62 34" fill="none" stroke="#3a7020" stroke-width="1"/>
+  <!-- Eyes -->
+  <ellipse cx="37" cy="44" rx="10" ry="8" fill="#1a1a0a" stroke="#2a2a0a" stroke-width="1"/>
+  <ellipse cx="63" cy="44" rx="10" ry="8" fill="#1a1a0a" stroke="#2a2a0a" stroke-width="1"/>
+  <ellipse cx="37" cy="44" rx="7" ry="5.5" fill="#3a2a0a"/>
+  <ellipse cx="63" cy="44" rx="7" ry="5.5" fill="#3a2a0a"/>
+  <!-- Iris -->
+  <ellipse cx="36" cy="43" rx="3.5" ry="3.5" fill="#aacc88"/>
+  <ellipse cx="62" cy="43" rx="3.5" ry="3.5" fill="#aacc88"/>
+  <circle cx="35" cy="42" r="1.5" fill="#fff" opacity="0.7"/>
+  <circle cx="61" cy="42" r="1.5" fill="#fff" opacity="0.7"/>
+  <!-- Nose -->
+  <ellipse cx="50" cy="54" rx="4" ry="2.5" fill="#3a7020" opacity="0.7"/>
+  <!-- Smile / wrinkles -->
+  <path d="M38 62 Q50 70 62 62" fill="none" stroke="#3a7020" stroke-width="2"/>
+  <!-- Beard hints -->
+  <path d="M38 66 Q34 72 36 78 M50 68 L50 76 M62 66 Q66 72 64 78" fill="none" stroke="#8acc6a" stroke-width="1.5"/>
+  <!-- Robe body -->
+  <path d="M20 70 Q26 64 50 62 Q74 64 80 70 L84 118 Q50 124 16 118 Z" fill="#4a3a2a" stroke="#3a2a1a" stroke-width="1"/>
+  <!-- Robe details -->
+  <path d="M24 78 Q50 74 76 78" fill="none" stroke="#5a4a3a" stroke-width="1"/>
+  <path d="M22 90 Q50 86 78 90" fill="none" stroke="#5a4a3a" stroke-width="1"/>
+  <path d="M22 104 Q50 100 78 104" fill="none" stroke="#5a4a3a" stroke-width="1"/>
+  <!-- Cane -->
+  <line x1="74" y1="80" x2="78" y2="120" stroke="#5a4a2a" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="73" cy="80" rx="5" ry="3" fill="#6a5a3a"/>
+  </g></svg>`,
 
-    function updateCareer() {
-        questList.innerHTML = `<div class="feed-entry">Kills: ${career.kills}</div><div class="feed-entry">Sith: ${career.sith}</div>`;
-        localStorage.setItem("galaxyEliteV3", JSON.stringify(career));
-    }
+  boba: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg1" cx="35%" cy="25%"><stop offset="0%" stop-color="#8aaa7a"/><stop offset="100%" stop-color="#4a6a3a"/></radialGradient>
+    <radialGradient id="bg2" cx="35%" cy="30%"><stop offset="0%" stop-color="#7a9a6a"/><stop offset="100%" stop-color="#3a5a2a"/></radialGradient>
+    <filter id="bf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#001100" flood-opacity="0.5"/></filter>
+  </defs>
+  <g filter="url(#bf)">
+  <!-- Body armor -->
+  <ellipse cx="50" cy="82" rx="30" ry="28" fill="url(#bg2)" stroke="#3a5a2a" stroke-width="1.5"/>
+  <!-- Chest armor plates -->
+  <path d="M32 70 Q50 66 68 70 L66 84 Q50 88 34 84 Z" fill="#6a8a5a" stroke="#4a6a3a" stroke-width="0.5"/>
+  <!-- Armor cross plate -->
+  <rect x="41" y="68" width="18" height="18" rx="2" fill="#5a7a4a" stroke="#3a5a2a"/>
+  <!-- Chest dent / battle damage -->
+  <circle cx="50" cy="77" r="4" fill="#4a6a3a" stroke="#2a4a1a" stroke-width="0.5"/>
+  <!-- Rocket pack -->
+  <rect x="60" y="62" width="12" height="20" rx="4" fill="#5a7a5a" stroke="#3a5a2a"/>
+  <rect x="62" y="58" width="8" height="8" rx="2" fill="#4a6a4a"/>
+  <!-- Neck -->
+  <rect x="44" y="44" width="12" height="10" rx="3" fill="#6a8a5a" stroke="#4a6a3a"/>
+  <!-- Helmet -->
+  <ellipse cx="50" cy="32" rx="27" ry="26" fill="url(#bg1)" stroke="#4a6a3a" stroke-width="1.5"/>
+  <!-- Helmet ridge top -->
+  <path d="M23 32 Q50 6 77 32" fill="none" stroke="#6a8a5a" stroke-width="2.5"/>
+  <!-- T-visor -->
+  <rect x="24" y="28" width="52" height="14" rx="3" fill="#111"/>
+  <rect x="44" y="28" width="12" height="14" rx="2" fill="#0a0a0a"/>
+  <!-- Visor tint -->
+  <rect x="24" y="28" width="52" height="14" rx="3" fill="#004400" opacity="0.5"/>
+  <ellipse cx="34" cy="34" rx="2" ry="1.5" fill="#00ff44" opacity="0.3"/>
+  <!-- Dents and battle marks -->
+  <path d="M32 22 L36 26" stroke="#3a5a2a" stroke-width="2"/>
+  <path d="M60 18 L65 24" stroke="#3a5a2a" stroke-width="1.5"/>
+  <!-- Rangefinder -->
+  <rect x="64" y="14" width="5" height="16" rx="2" fill="#4a6a3a" stroke="#2a4a1a"/>
+  <circle cx="66.5" cy="14" r="3" fill="#cc0000" stroke="#990000"/>
+  <!-- Legs -->
+  <rect x="30" y="106" width="15" height="12" rx="4" fill="#6a8a5a" stroke="#4a6a3a"/>
+  <rect x="55" y="106" width="15" height="12" rx="4" fill="#6a8a5a" stroke="#4a6a3a"/>
+  </g></svg>`,
 
-    for(let i=0; i<9; i++) {
-        const h = document.createElement("div"); h.className="hole";
-        const t = document.createElement("div"); t.className="target";
-        h.appendChild(t); game.appendChild(h);
-    }
+  predator: `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="pg1" cx="35%" cy="30%"><stop offset="0%" stop-color="#cc9944"/><stop offset="100%" stop-color="#7a5010"/></radialGradient>
+    <radialGradient id="pg2" cx="40%" cy="35%"><stop offset="0%" stop-color="#bb8833"/><stop offset="100%" stop-color="#6a4008"/></radialGradient>
+    <filter id="pf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#220000" flood-opacity="0.5"/></filter>
+  </defs>
+  <g filter="url(#pf)">
+  <!-- Dreadlocks/mandible stalks -->
+  <path d="M26 14 Q18 4 14 0 L20 18" stroke="#8a6020" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M34 10 Q28 0 26 -2 L32 14" stroke="#8a6020" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M44 8 Q40 -2 40 -4 L45 10" stroke="#8a6020" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M56 8 Q60 -2 60 -4 L55 10" stroke="#8a6020" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M66 10 Q72 0 74 -2 L68 14" stroke="#8a6020" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M74 14 Q82 4 86 0 L80 18" stroke="#8a6020" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <!-- Head -->
+  <ellipse cx="50" cy="48" rx="32" ry="34" fill="url(#pg1)" stroke="#7a5010" stroke-width="1.5"/>
+  <!-- Forehead ridges (rough texture) -->
+  <path d="M28 38 Q38 34 62 38 Q72 42 62 38" fill="none" stroke="#8a5a18" stroke-width="2"/>
+  <path d="M30 44 Q40 40 60 44 Q70 48 60 44" fill="none" stroke="#8a5a18" stroke-width="1.5"/>
+  <!-- Eyes (glowing) -->
+  <ellipse cx="36" cy="48" rx="9" ry="7" fill="#1a1800"/>
+  <ellipse cx="36" cy="48" rx="6" ry="5" fill="#2a2400"/>
+  <ellipse cx="36" cy="47" rx="3" ry="3" fill="#ffcc00" opacity="0.9"/>
+  <ellipse cx="35" cy="46" rx="1.5" ry="1.5" fill="#ffee88" opacity="0.8"/>
+  <ellipse cx="64" cy="48" rx="9" ry="7" fill="#1a1800"/>
+  <ellipse cx="64" cy="48" rx="6" ry="5" fill="#2a2400"/>
+  <ellipse cx="64" cy="47" rx="3" ry="3" fill="#ffcc00" opacity="0.9"/>
+  <ellipse cx="63" cy="46" rx="1.5" ry="1.5" fill="#ffee88" opacity="0.8"/>
+  <!-- Mandibles (4-pronged) -->
+  <path d="M38 66 L34 76 M44 68 L41 80 M56 68 L59 80 M62 66 L66 76" stroke="#7a5010" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M35 73 L38 77 M43 78 L46 82 M54 78 L57 82 M65 73 L62 77" stroke="#6a4008" stroke-width="1" stroke-linecap="round"/>
+  <!-- Bio-mask (shoulder cannon hint) -->
+  <path d="M68 36 Q76 30 80 36 L78 46 Q72 50 70 44 Z" fill="#4a3010" stroke="#2a1a00"/>
+  <circle cx="74" cy="38" r="3" fill="#cc2200" stroke="#aa0000"/>
+  <!-- Body -->
+  <rect x="22" y="86" width="56" height="40" rx="6" fill="url(#pg2)" stroke="#6a4010" stroke-width="1.5"/>
+  <!-- Armor net pattern -->
+  <line x1="28" y1="92" x2="72" y2="92" stroke="#8a6020" stroke-width="0.8"/>
+  <line x1="28" y1="100" x2="72" y2="100" stroke="#8a6020" stroke-width="0.8"/>
+  <line x1="28" y1="108" x2="72" y2="108" stroke="#8a6020" stroke-width="0.8"/>
+  <line x1="28" y1="116" x2="72" y2="116" stroke="#8a6020" stroke-width="0.8"/>
+  <circle cx="38" cy="96" r="4" fill="#cc2200" stroke="#aa0000"/>
+  <circle cx="50" cy="96" r="4" fill="#2222cc" stroke="#0000aa"/>
+  <circle cx="62" cy="96" r="4" fill="#cc2200" stroke="#aa0000"/>
+  </g></svg>`,
 
-    function spawn() {
-        if (!isPlaying) return;
-        const targets = Array.from(document.querySelectorAll(".target")).filter(t => !t.classList.contains("up"));
-        if (targets.length === 0) return;
+  vader: `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="vg1" cx="35%" cy="25%"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#080808"/></radialGradient>
+    <radialGradient id="vg2" cx="40%" cy="30%"><stop offset="0%" stop-color="#1a1a1a"/><stop offset="100%" stop-color="#030303"/></radialGradient>
+    <radialGradient id="vgEye" cx="30%" cy="30%"><stop offset="0%" stop-color="#ff4444"/><stop offset="100%" stop-color="#880000"/></radialGradient>
+    <filter id="vf"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#ff0000" flood-opacity="0.15"/></filter>
+  </defs>
+  <g filter="url(#vf)">
+  <!-- Shoulder pauldrons -->
+  <rect x="4" y="50" width="18" height="26" rx="4" fill="url(#vg2)" stroke="#2a2a2a"/>
+  <rect x="78" y="50" width="18" height="26" rx="4" fill="url(#vg2)" stroke="#2a2a2a"/>
+  <!-- Body -->
+  <ellipse cx="50" cy="84" rx="34" ry="30" fill="url(#vg2)" stroke="#1a1a1a" stroke-width="1.5"/>
+  <!-- Life support chest panel -->
+  <rect x="30" y="72" width="40" height="28" rx="4" fill="#111"/>
+  <rect x="32" y="74" width="16" height="10" rx="2" fill="#1a1a1a" stroke="#222"/>
+  <circle cx="35" cy="79" r="2.5" fill="#ff0000"/>
+  <circle cx="41" cy="79" r="2.5" fill="#00ff00"/>
+  <circle cx="35" cy="86" r="2" fill="#0000ff"/>
+  <circle cx="41" cy="86" r="2" fill="#ffff00"/>
+  <rect x="52" y="74" width="16" height="10" rx="2" fill="#222"/>
+  <rect x="52" y="86" width="16" height="10" rx="2" fill="#222"/>
+  <line x1="54" y1="79" x2="66" y2="79" stroke="#444" stroke-width="1.5"/>
+  <line x1="54" y1="91" x2="66" y2="91" stroke="#444" stroke-width="1.5"/>
+  <!-- Cape hint -->
+  <path d="M16 56 Q10 80 14 110 Q20 118 50 120 Q80 118 86 110 Q90 80 84 56" fill="#0a0a0a" opacity="0.8"/>
+  <!-- Neck collar -->
+  <rect x="38" y="42" width="24" height="12" rx="4" fill="#111" stroke="#222" stroke-width="1.5"/>
+  <!-- Helmet -->
+  <ellipse cx="50" cy="30" rx="30" ry="30" fill="url(#vg1)" stroke="#222" stroke-width="1.5"/>
+  <!-- Helmet dome ridge -->
+  <path d="M20 30 Q50 0 80 30" fill="none" stroke="#2a2a2a" stroke-width="2.5"/>
+  <!-- Face plate lower -->
+  <path d="M24 34 Q34 28 50 26 Q66 28 76 34 L74 56 Q60 68 40 68 L26 56 Z" fill="#0a0a0a" stroke="#1a1a1a"/>
+  <!-- Mouth grille -->
+  <line x1="35" y1="56" x2="65" y2="56" stroke="#2a2a2a" stroke-width="2"/>
+  <line x1="35" y1="61" x2="65" y2="61" stroke="#2a2a2a" stroke-width="1.5"/>
+  <line x1="35" y1="66" x2="65" y2="66" stroke="#2a2a2a" stroke-width="1.5"/>
+  <!-- Eye lenses (glowing red) -->
+  <ellipse cx="35" cy="44" rx="11" ry="7" fill="#1a0000" stroke="#330000" stroke-width="1"/>
+  <ellipse cx="35" cy="44" rx="8" ry="5" fill="url(#vgEye)"/>
+  <ellipse cx="35" cy="43" rx="5" ry="3.5" fill="#ff3333"/>
+  <ellipse cx="33" cy="42" rx="2.5" ry="2" fill="#ff8888" opacity="0.8"/>
+  <!-- Red eye ambient glow -->
+  <ellipse cx="35" cy="44" rx="13" ry="9" fill="#ff0000" opacity="0.08"/>
+  <ellipse cx="65" cy="44" rx="11" ry="7" fill="#1a0000" stroke="#330000" stroke-width="1"/>
+  <ellipse cx="65" cy="44" rx="8" ry="5" fill="url(#vgEye)"/>
+  <ellipse cx="65" cy="43" rx="5" ry="3.5" fill="#ff3333"/>
+  <ellipse cx="63" cy="42" rx="2.5" ry="2" fill="#ff8888" opacity="0.8"/>
+  <ellipse cx="65" cy="44" rx="13" ry="9" fill="#ff0000" opacity="0.08"/>
+  </g></svg>`
+};
 
-        const t = targets[Math.floor(Math.random() * targets.length)];
-        const isBoss = Math.random() < 0.1;
-        const type = ["trooper", "clone", "sith"][Math.floor(Math.random()*3)];
+// ─── ENEMY TYPES ─────────────────────────────────────────────────────────────
+const ENEMIES = [
+  { id:'trooper',   name:'Stormtrooper', pts:10,  hp:1, color:'#aaaaaa', rare:0.22 },
+  { id:'clone',     name:'Clone',        pts:10,  hp:1, color:'#aaddff', rare:0.22 },
+  { id:'xenomorph', name:'Xenomorph',    pts:20,  hp:1, color:'#44ff88', rare:0.16 },
+  { id:'r2d2',      name:'R2-D2',        pts:20,  hp:1, color:'#4488ff', rare:0.14 },
+  { id:'yoda',      name:'Yoda',         pts:30,  hp:2, color:'#88dd44', rare:0.10 },
+  { id:'boba',      name:'Boba Fett',    pts:30,  hp:2, color:'#88bb55', rare:0.08 },
+  { id:'predator',  name:'Predator',     pts:40,  hp:2, color:'#ffcc22', rare:0.05 },
+  { id:'vader',     name:'Darth Vader',  pts:50,  hp:3, color:'#ff4444', rare:0.03 },
+];
 
-        // Spawn Flare
-        const f = document.createElement("div"); f.className="spawn-flare";
-        t.parentElement.appendChild(f); setTimeout(() => f.remove(), 400);
-
-        // Spawn Sound (High bloop)
-        playSound(400, 'sine', 0.1, 0.05);
-
-        t.className = `target ${type} ${isBoss ? 'is-boss' : ''}`;
-        t.dataset.hp = isBoss ? "3" : "1";
-        t.classList.add("up");
-
-        setTimeout(() => { if(t.classList.contains("up")) t.classList.remove("up"); }, 1300);
-    }
-
-    game.addEventListener("mousedown", (e) => {
-        if (!isPlaying || !e.target.classList.contains("up")) return;
-        
-        // Shoot Sound (Laser)
-        playSound(800, 'sawtooth', 0.2, 0.1);
-
-        const t = e.target;
-        let hp = parseInt(t.dataset.hp);
-        hp--; t.dataset.hp = hp;
-
-        if (hp <= 0) {
-            // Kill Sound (Explosion)
-            playSound(150, 'square', 0.3, 0.1);
-            
-            t.classList.remove("up");
-            const points = t.classList.contains("is-boss") ? 20 : 10;
-            score += points;
-            scoreEl.textContent = score;
-            
-            career.kills++;
-            if(t.classList.contains("sith")) career.sith++;
-            updateCareer();
-
-            log(`HIT: +${points} PTS`);
-            if(score >= WIN_QUOTA) log("QUOTA ACHIEVED!", "#f0f");
-        }
-    });
-
-    startBtn.addEventListener("click", () => {
-        if (isPlaying) return;
-        audioCtx.resume(); // Chrome requires user gesture to start audio
-        score = 0; time = 30; isPlaying = true;
-        scoreEl.textContent = "0";
-        startBtn.disabled = true;
-        log("MISSION START", "#fff");
-
-        spawnLoop = setInterval(spawn, 750);
-        timerLoop = setInterval(() => {
-            time--; timeEl.textContent = time + "s";
-            if (time <= 0) {
-                clearInterval(spawnLoop); clearInterval(timerLoop);
-                isPlaying = false; startBtn.disabled = false;
-                if(score >= WIN_QUOTA) alert("VICTORY! Quota reached.");
-                else alert("FAILED: Quota not met.");
-            }
-        }, 1000);
-    });
-
-    updateCareer();
-    // Starfield
-    for(let i=0; i<50; i++) {
-        const s = document.createElement("div"); s.className="star";
-        s.style.left = Math.random()*100+"vw"; s.style.top = Math.random()*100+"vh";
-        s.style.animationDuration = (2+Math.random()*3)+"s";
-        document.body.appendChild(s);
-    }
+// Fill legend icons
+ENEMIES.forEach(e => {
+  const el = document.getElementById('li-'+e.id);
+  if(el) el.innerHTML = SVGS[e.id];
 });
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const TOTAL_TIME = 60;
+let score=0, hits=0, shots=0, combo=1, maxCombo=1, timeLeft=TOTAL_TIME;
+let isPlaying=false, spawnTimer=null, tickTimer=null;
+
+// ─── ELEMENTS ────────────────────────────────────────────────────────────────
+const scoreEl    = document.getElementById('scoreEl');
+const timeEl     = document.getElementById('timeEl');
+const hitsEl     = document.getElementById('hitsEl');
+const comboEl    = document.getElementById('comboEl');
+const hsEl       = document.getElementById('hsEl');
+const timerFill  = document.getElementById('timerFill');
+const feedEl     = document.getElementById('feed');
+const startBtn   = document.getElementById('startBtn');
+const vfx        = document.getElementById('vfx');
+const endScreen  = document.getElementById('endScreen');
+const gameGrid   = document.getElementById('game');
+
+let highScore = parseInt(localStorage.getItem('gmh_highscore') || '0');
+hsEl.textContent = String(highScore).padStart(6,'0');
+
+// ─── BUILD GRID ───────────────────────────────────────────────────────────────
+for(let i=0;i<9;i++){
+  const hole = document.createElement('div'); hole.className='hole';
+  const tgt  = document.createElement('div'); tgt.className='target';
+  hole.appendChild(tgt);
+  gameGrid.appendChild(hole);
+}
+
+// ─── AUDIO ────────────────────────────────────────────────────────────────────
+const audio = new (window.AudioContext || window.webkitAudioContext)();
+
+function playTone(freq, type, dur, vol=0.08, ramp=true){
+  try{
+    const osc=audio.createOscillator(), gain=audio.createGain();
+    osc.type=type; osc.frequency.value=freq;
+    if(ramp) osc.frequency.exponentialRampToValueAtTime(10, audio.currentTime+dur);
+    gain.gain.setValueAtTime(vol, audio.currentTime);
+    gain.gain.linearRampToValueAtTime(0, audio.currentTime+dur);
+    osc.connect(gain); gain.connect(audio.destination);
+    osc.start(); osc.stop(audio.currentTime+dur);
+  }catch(e){}
+}
+
+function playLaser(){ playTone(880,'sawtooth',0.18,0.07); playTone(440,'sine',0.1,0.05,false); }
+function playHit()  { playTone(220,'square',0.25,0.09); playTone(110,'square',0.2,0.06); }
+function playSpawn(){ playTone(380,'sine',0.1,0.03); }
+function playCombo(){ playTone(660+(combo*80),'sine',0.15,0.06,false); }
+
+// ─── VFX ──────────────────────────────────────────────────────────────────────
+function spawnBurst(x, y, color){
+  // Main burst
+  const burst = document.createElement('div');
+  burst.className='hit-burst';
+  burst.style.cssText=`left:${x}px;top:${y}px;background:radial-gradient(circle,${color},transparent)`;
+  vfx.appendChild(burst);
+  setTimeout(()=>burst.remove(), 450);
+
+  // Secondary ring
+  const ring = document.createElement('div');
+  ring.style.cssText=`position:absolute;left:${x-20}px;top:${y-20}px;width:40px;height:40px;border-radius:50%;
+    border:3px solid ${color};animation:burstOut 0.5s ease-out forwards;pointer-events:none`;
+  vfx.appendChild(ring);
+  setTimeout(()=>ring.remove(), 550);
+
+  // Spark particles
+  for(let i=0;i<10;i++){
+    const angle = (i/10)*Math.PI*2;
+    const dist  = 30 + Math.random()*50;
+    const spark = document.createElement('div');
+    spark.className='spark';
+    spark.style.cssText=`left:${x}px;top:${y}px;background:${color};
+      --tx:${Math.cos(angle)*dist}px;--ty:${Math.sin(angle)*dist}px;--dur:${0.3+Math.random()*0.4}s`;
+    vfx.appendChild(spark);
+    setTimeout(()=>spark.remove(), 800);
+  }
+}
+
+function spawnScorePop(x, y, pts, color){
+  const pop = document.createElement('div');
+  pop.className='score-pop';
+  pop.style.cssText=`left:${x-20}px;top:${y-10}px;color:${color}`;
+  pop.textContent = '+'+pts+(combo>1?' x'+combo:'');
+  vfx.appendChild(pop);
+  setTimeout(()=>pop.remove(), 950);
+}
+
+function spawnLaserRay(fromX, fromY, toX, toY, color){
+  const dx=toX-fromX, dy=toY-fromY;
+  const len=Math.sqrt(dx*dx+dy*dy);
+  const angle=Math.atan2(dy,dx)*180/Math.PI;
+  const ray = document.createElement('div');
+  ray.className='laser-ray';
+  ray.style.cssText=`left:${fromX}px;top:${fromY}px;width:${len}px;
+    transform:rotate(${angle}deg);background:linear-gradient(to right,white 0%,${color} 40%,transparent 100%);
+    box-shadow:0 0 8px ${color},0 0 16px ${color}`;
+  vfx.appendChild(ray);
+  setTimeout(()=>ray.remove(), 280);
+}
+
+function spawnLightBeam(hole, color){
+  const beam = document.createElement('div');
+  beam.className='light-beam';
+  beam.style.cssText=`background:linear-gradient(to top,${color},transparent);height:80px;border-radius:30px 30px 0 0;opacity:0.5`;
+  hole.appendChild(beam);
+  setTimeout(()=>beam.remove(), 600);
+}
+
+// ─── LOG ──────────────────────────────────────────────────────────────────────
+function log(msg, type='info'){
+  const div=document.createElement('div');
+  div.className=`feed-entry ${type}`;
+  div.textContent=msg;
+  feedEl.prepend(div);
+  while(feedEl.children.length>12) feedEl.lastChild.remove();
+}
+
+// ─── SPAWN ────────────────────────────────────────────────────────────────────
+function pickEnemy(){
+  const r=Math.random();
+  let acc=0;
+  for(const e of ENEMIES){ acc+=e.rare; if(r<acc) return e; }
+  return ENEMIES[0];
+}
+
+function spawn(){
+  if(!isPlaying) return;
+  const targets=[...document.querySelectorAll('.target')].filter(t=>!t.classList.contains('up'));
+  if(!targets.length) return;
+
+  const tgt  = targets[Math.floor(Math.random()*targets.length)];
+  const enemy= pickEnemy();
+  const isBoss= Math.random()<0.08;
+
+  tgt.innerHTML = SVGS[enemy.id];
+  tgt.dataset.type  = enemy.id;
+  tgt.dataset.name  = enemy.name;
+  tgt.dataset.pts   = enemy.pts;
+  tgt.dataset.hp    = isBoss ? enemy.hp+1 : enemy.hp;
+  tgt.dataset.color = enemy.color;
+  tgt.classList.toggle('is-boss', isBoss);
+  tgt.classList.add('up');
+
+  // Light beam from hole on spawn
+  spawnLightBeam(tgt.parentElement, enemy.color);
+  playSpawn();
+
+  const stayTime = isBoss ? 2200 : 1400;
+  setTimeout(()=>{ if(tgt.classList.contains('up')){ tgt.classList.remove('up'); combo=1; updateUI(); } }, stayTime);
+}
+
+// ─── CLICK HANDLER ────────────────────────────────────────────────────────────
+// Track cursor pos for laser origin
+let cursorX=window.innerWidth/2, cursorY=window.innerHeight/2;
+window.addEventListener('mousemove', e=>{ cursorX=e.clientX; cursorY=e.clientY; });
+
+gameGrid.addEventListener('mousedown', e=>{
+  if(!isPlaying) return;
+  const tgt = e.target.closest('.target');
+  if(!tgt || !tgt.classList.contains('up')) return;
+  audio.resume();
+
+  shots++;
+  const rect  = tgt.getBoundingClientRect();
+  const cx    = rect.left + rect.width/2;
+  const cy    = rect.top  + rect.height/2;
+  const color = tgt.dataset.color || '#00e5ff';
+
+  // Laser ray from cursor to target
+  spawnLaserRay(cursorX, cursorY, cx, cy, color);
+  playLaser();
+
+  let hp = parseInt(tgt.dataset.hp) - 1;
+  tgt.dataset.hp = hp;
+  tgt.classList.add('hit-flash');
+  setTimeout(()=>tgt.classList.remove('hit-flash'), 160);
+
+  if(hp <= 0){
+    const pts   = parseInt(tgt.dataset.pts) * combo;
+    const name  = tgt.dataset.name;
+    const boss  = tgt.classList.contains('is-boss');
+
+    score += pts; hits++; combo = Math.min(combo+1, 8);
+    if(combo > maxCombo) maxCombo = combo;
+
+    tgt.classList.remove('up');
+    spawnBurst(cx, cy, color);
+    spawnScorePop(cx, cy, pts, color);
+    playHit();
+    if(combo>1) playCombo();
+
+    log(`▸ ${name}${boss?' [BOSS]':''} +${pts}${combo>2?' COMBO x'+combo:''}`, boss?'boss':'hit');
+    updateUI();
+  }
+});
+
+// ─── UI UPDATE ────────────────────────────────────────────────────────────────
+function updateUI(){
+  scoreEl.textContent = score;
+  hitsEl.textContent  = hits;
+  comboEl.textContent = 'x'+combo;
+  if(combo >= 3) comboEl.style.color='#ff6d00';
+  else if(combo >= 2) comboEl.style.color=getComputedStyle(document.documentElement).getPropertyValue('--gold');
+  else comboEl.style.color=getComputedStyle(document.documentElement).getPropertyValue('--gold');
+}
+
+// ─── GAME LOOP ────────────────────────────────────────────────────────────────
+function startGame(){
+  audio.resume();
+  score=0; hits=0; shots=0; combo=1; maxCombo=1; timeLeft=TOTAL_TIME;
+  isPlaying=true;
+  startBtn.disabled=true;
+  endScreen.classList.remove('show');
+  feedEl.innerHTML='';
+  updateUI();
+  timerFill.style.width='100%';
+  timerFill.style.background='linear-gradient(to right,var(--cyan),#00aaff)';
+  log('MISSION LAUNCHED','info');
+
+  const spawnDelay = ()=> 600 + Math.random()*400;
+  let nextSpawn = Date.now() + spawnDelay();
+
+  spawnTimer = setInterval(()=>{
+    if(Date.now() >= nextSpawn){ spawn(); nextSpawn = Date.now()+spawnDelay(); }
+  }, 100);
+
+  tickTimer = setInterval(()=>{
+    timeLeft--;
+    timeEl.textContent = timeLeft;
+    const pct = (timeLeft/TOTAL_TIME)*100;
+    timerFill.style.width = pct+'%';
+    if(pct<30) timerFill.style.background='linear-gradient(to right,#ff4d6d,#ff1744)';
+    else if(pct<60) timerFill.style.background='linear-gradient(to right,var(--gold),#ffab40)';
+    if(timeLeft<=0) endGame();
+  }, 1000);
+}
+
+function endGame(){
+  clearInterval(spawnTimer); clearInterval(tickTimer);
+  isPlaying=false;
+  // Hide all targets
+  document.querySelectorAll('.target.up').forEach(t=>t.classList.remove('up'));
+
+  setTimeout(()=>showEndScreen(), 400);
+}
+
+function showEndScreen(){
+  const isNewHS = score > highScore;
+  if(isNewHS){ highScore=score; localStorage.setItem('gmh_highscore', score); }
+  hsEl.textContent = String(highScore).padStart(6,'0');
+
+  const acc = shots>0 ? Math.round((hits/shots)*100) : 0;
+  let grade, gradeColor;
+  if     (score>=500){ grade='S'; gradeColor='#ffd740'; }
+  else if(score>=350){ grade='A'; gradeColor='#00e676'; }
+  else if(score>=200){ grade='B'; gradeColor='#00e5ff'; }
+  else if(score>=100){ grade='C'; gradeColor='#ff9800'; }
+  else               { grade='D'; gradeColor='#ff4d6d'; }
+
+  document.getElementById('endTitle').textContent   = score>=200?'MISSION COMPLETE':'MISSION FAILED';
+  document.getElementById('endTitle').className     = 'end-title '+(score>=200?'victory':'defeat');
+  document.getElementById('endScore').textContent   = score;
+  document.getElementById('endHits').textContent    = hits;
+  document.getElementById('endCombo').textContent   = 'x'+maxCombo;
+  document.getElementById('endAcc').textContent     = acc+'%';
+  document.getElementById('endGrade').textContent   = grade;
+  document.getElementById('endGrade').style.color   = gradeColor;
+  document.getElementById('endGrade').style.textShadow = `0 0 20px ${gradeColor}`;
+  document.getElementById('hsBadge').style.display  = isNewHS?'block':'none';
+
+  endScreen.classList.add('show');
+  startBtn.disabled=false;
+}
+
+function restartGame(){
+  endScreen.classList.remove('show');
+  setTimeout(startGame, 200);
+}
+
+startBtn.addEventListener('click', startGame);
+
+// ─── BACKGROUND CANVAS ────────────────────────────────────────────────────────
+const bgCanvas = document.getElementById('bg');
+const bgCtx    = bgCanvas.getContext('2d');
+let stars=[];
+
+function resizeBg(){ bgCanvas.width=window.innerWidth; bgCanvas.height=window.innerHeight; }
+function initStars(){
+  stars=[];
+  for(let i=0;i<200;i++) stars.push({
+    x:Math.random()*bgCanvas.width, y:Math.random()*bgCanvas.height,
+    r:Math.random()*1.6+0.2, speed:Math.random()*0.25+0.05,
+    tw:Math.random()*Math.PI*2, tws:Math.random()*0.025+0.01,
+    c:['#fff','#adf','#cef','#ffd','#fcc'][~~(Math.random()*5)]
+  });
+}
+function drawBg(){
+  bgCtx.clearRect(0,0,bgCanvas.width,bgCanvas.height);
+  // Nebula
+  [[0.15,0.25,280,'rgba(70,0,160,0.07)'],[0.85,0.75,220,'rgba(0,80,180,0.07)'],
+   [0.5,0.5,350,'rgba(0,150,200,0.04)']].forEach(([cx,cy,r,c])=>{
+    const g=bgCtx.createRadialGradient(bgCanvas.width*cx,bgCanvas.height*cy,0,bgCanvas.width*cx,bgCanvas.height*cy,r);
+    g.addColorStop(0,c); g.addColorStop(1,'transparent');
+    bgCtx.fillStyle=g; bgCtx.fillRect(0,0,bgCanvas.width,bgCanvas.height);
+  });
+  stars.forEach(s=>{
+    s.tw+=s.tws;
+    bgCtx.globalAlpha=0.3+0.7*Math.abs(Math.sin(s.tw));
+    bgCtx.fillStyle=s.c;
+    bgCtx.beginPath(); bgCtx.arc(s.x,s.y,s.r,0,Math.PI*2); bgCtx.fill();
+    s.y+=s.speed; if(s.y>bgCanvas.height){s.y=0;s.x=Math.random()*bgCanvas.width;}
+  });
+  bgCtx.globalAlpha=1;
+  requestAnimationFrame(drawBg);
+}
+resizeBg(); initStars(); drawBg();
+window.addEventListener('resize',()=>{resizeBg();initStars();});
 </script>
 </body>
 </html>

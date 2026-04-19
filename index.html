@@ -9,301 +9,193 @@
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --cyan: #00e5ff;
-      --purple: #aa00ff;
-      --red: #ff1744;
-      --green: #00e676;
-      --gold: #ffd740;
-      --bg: #03040d;
-      --panel: rgba(0, 10, 30, 0.88);
-      --border: rgba(0, 229, 255, 0.35);
-      --text: #c8e6ff;
+      --cyan: #00e5ff; --purple: #aa00ff; --red: #ff1744;
+      --green: #00e676; --gold: #ffd740; --bg: #02020e;
+      --panel: rgba(4,10,28,0.92); --border: rgba(0,229,255,0.22); --text: #c8e6ff;
     }
 
-    html, body {
-      width: 100%; height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Share Tech Mono', monospace;
-      overflow: hidden;
-    }
+    html, body { width:100%; height:100%; background:var(--bg); color:var(--text);
+      font-family:'Share Tech Mono',monospace; overflow:hidden; user-select:none; }
 
-    canvas#starfield {
-      position: fixed; top: 0; left: 0;
-      width: 100%; height: 100%; z-index: 0;
-    }
+    /* ── LAYERS ── */
+    #bgCanvas  { position:fixed; inset:0; width:100%; height:100%; z-index:0; }
+    #vfxCanvas { position:fixed; inset:0; width:100%; height:100%; z-index:2; pointer-events:none; }
+    .scanlines { position:fixed; inset:0; z-index:3; pointer-events:none;
+      background:repeating-linear-gradient(to bottom,transparent 0px,transparent 3px,rgba(0,0,0,0.07) 3px,rgba(0,0,0,0.07) 4px); }
+    .vignette  { position:fixed; inset:0; z-index:3; pointer-events:none;
+      background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,0.75) 100%); }
 
-    .scanlines {
-      position: fixed; top: 0; left: 0;
-      width: 100%; height: 100%; z-index: 1;
-      background: repeating-linear-gradient(
-        to bottom,
-        transparent 0px, transparent 3px,
-        rgba(0,0,0,0.07) 3px, rgba(0,0,0,0.07) 4px
-      );
-      pointer-events: none;
-    }
+    /* ── TICKER ── */
+    .ticker { position:fixed; top:0; left:0; right:0; height:28px; z-index:10;
+      background:rgba(0,229,255,0.05); border-bottom:1px solid var(--border);
+      overflow:hidden; display:flex; align-items:center; }
+    .ticker-inner { white-space:nowrap; animation:tickScroll 30s linear infinite;
+      font-size:0.62rem; letter-spacing:2px; color:var(--cyan); opacity:0.7; }
+    @keyframes tickScroll { 0%{transform:translateX(100vw)} 100%{transform:translateX(-100%)} }
 
-    .vignette {
-      position: fixed; top: 0; left: 0;
-      width: 100%; height: 100%; z-index: 1;
-      background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.7) 100%);
-      pointer-events: none;
-    }
+    /* ── CORNER BRACKETS ── */
+    .br { position:fixed; width:55px; height:55px; border-color:var(--cyan); border-style:solid; opacity:0.5; z-index:4; }
+    .br.tl{top:38px;left:16px;border-width:2px 0 0 2px}
+    .br.tr{top:38px;right:16px;border-width:2px 2px 0 0}
+    .br.bl{bottom:16px;left:16px;border-width:0 0 2px 2px}
+    .br.br2{bottom:16px;right:16px;border-width:0 2px 2px 0}
 
-    .launcher {
-      position: relative; z-index: 2;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      height: 100vh; gap: 20px;
-      padding: 20px;
-    }
+    /* ── SCAN LINE ── */
+    .scan-sweep { position:fixed; left:0; right:0; height:2px; z-index:3; pointer-events:none;
+      background:linear-gradient(to right,transparent,var(--cyan),transparent); opacity:0.25;
+      animation:sweepDown 7s linear infinite; }
+    @keyframes sweepDown { 0%{top:-2px} 100%{top:100vh} }
 
-    /* Corner bracket decoration */
-    .bracket {
-      position: fixed;
-      width: 60px; height: 60px;
-      border-color: var(--cyan);
-      border-style: solid;
-      opacity: 0.6;
-    }
-    .bracket.tl { top: 20px; left: 20px; border-width: 2px 0 0 2px; }
-    .bracket.tr { top: 20px; right: 20px; border-width: 2px 2px 0 0; }
-    .bracket.bl { bottom: 20px; left: 20px; border-width: 0 0 2px 2px; }
-    .bracket.br { bottom: 20px; right: 20px; border-width: 0 2px 2px 0; }
+    /* ── MAIN LAYOUT ── */
+    .lobby { position:relative; z-index:5; display:flex; flex-direction:column;
+      align-items:center; justify-content:flex-start; min-height:100vh;
+      padding:44px 24px 24px; gap:14px; }
 
-    /* Animated border line */
-    .scan-line {
-      position: fixed; left: 0; right: 0;
-      height: 2px;
-      background: linear-gradient(to right, transparent, var(--cyan), transparent);
-      opacity: 0.3;
-      animation: scanMove 6s linear infinite;
-      z-index: 1;
-    }
-    @keyframes scanMove {
-      0% { top: 0%; } 100% { top: 100%; }
-    }
+    /* ── EMBLEM ── */
+    .emblem { width:72px; height:72px; animation:spinSlow 18s linear infinite; flex-shrink:0; }
+    @keyframes spinSlow { to{transform:rotate(360deg)} }
 
-    .emblem {
-      width: 90px; height: 90px;
-      animation: rotateSlow 20s linear infinite;
-    }
-    @keyframes rotateSlow {
-      from { transform: rotate(0deg); } to { transform: rotate(360deg); }
-    }
-
-    .game-title {
-      font-family: 'Orbitron', sans-serif;
-      font-size: clamp(2.2rem, 5.5vw, 4.8rem);
-      font-weight: 900;
-      text-align: center;
-      color: #fff;
-      text-shadow:
-        0 0 15px var(--cyan),
-        0 0 35px var(--cyan),
-        0 0 70px rgba(0,229,255,0.4);
-      letter-spacing: 6px;
-      line-height: 1.1;
-      animation: titlePulse 3s ease-in-out infinite;
-    }
+    /* ── TITLE ── */
+    .game-title { font-family:'Orbitron',sans-serif; font-size:clamp(2rem,5vw,4.2rem);
+      font-weight:900; letter-spacing:6px; line-height:1.05; text-align:center; color:#fff;
+      text-shadow:0 0 14px var(--cyan),0 0 35px var(--cyan),0 0 70px rgba(0,229,255,0.35);
+      animation:titlePulse 3s ease-in-out infinite; }
     @keyframes titlePulse {
-      0%, 100% { text-shadow: 0 0 15px var(--cyan), 0 0 35px var(--cyan), 0 0 70px rgba(0,229,255,0.4); }
-      50% { text-shadow: 0 0 25px var(--cyan), 0 0 55px var(--cyan), 0 0 100px rgba(0,229,255,0.6); }
+      0%,100%{text-shadow:0 0 14px var(--cyan),0 0 35px var(--cyan),0 0 70px rgba(0,229,255,0.3)}
+      50%    {text-shadow:0 0 22px var(--cyan),0 0 55px var(--cyan),0 0 110px rgba(0,229,255,0.55)} }
+
+    .subtitle { font-size:0.78rem; letter-spacing:7px; color:var(--cyan); opacity:0.75; text-transform:uppercase; }
+
+    .divider { width:280px; height:1px; background:linear-gradient(to right,transparent,var(--cyan),transparent); opacity:0.45; }
+
+    /* ── STATS ROW ── */
+    .stats-row { display:flex; gap:24px; }
+    .stat-box { display:flex; flex-direction:column; align-items:center; gap:3px;
+      padding:10px 18px; background:var(--panel); border:1px solid var(--border); border-radius:6px; }
+    .stat-label { font-size:0.58rem; letter-spacing:3px; color:var(--cyan); opacity:0.65; text-transform:uppercase; }
+    .stat-value { font-family:'Orbitron',sans-serif; font-size:1.25rem; color:var(--gold); text-shadow:0 0 10px var(--gold); }
+
+    /* ── CHARACTER SHOWCASE ── */
+    .showcase-wrap { display:flex; flex-direction:column; align-items:center; gap:8px; width:100%; }
+    .showcase-label { font-size:0.6rem; letter-spacing:5px; color:var(--cyan); opacity:0.55; text-transform:uppercase; }
+
+    .char-stage { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; max-width:820px; }
+
+    .char-slot {
+      position:relative; width:80px; height:110px; flex-shrink:0;
+      display:flex; flex-direction:column; align-items:center;
     }
 
-    .game-subtitle {
-      font-size: 0.95rem;
-      color: var(--cyan);
-      letter-spacing: 8px;
-      text-transform: uppercase;
-      opacity: 0.8;
+    /* Hole (dark pit) */
+    .char-hole {
+      position:relative; width:80px; height:80px; border-radius:50%;
+      background:radial-gradient(ellipse at 40% 35%,#0a0d20,#020308 70%,#000);
+      border:3px solid #0c0e28;
+      box-shadow:inset 0 6px 24px rgba(0,0,0,0.95),inset 0 -3px 10px rgba(0,100,255,0.06),
+                 0 0 0 1px rgba(0,100,255,0.12);
+      overflow:visible;
     }
+    /* Rim ambient glow (colour injected by JS) */
+    .char-hole::after { content:''; position:absolute; inset:-3px; border-radius:50%;
+      border:3px solid transparent; pointer-events:none;
+      transition:border-color 0.3s,box-shadow 0.3s; }
 
-    .divider {
-      width: 300px; height: 1px;
-      background: linear-gradient(to right, transparent, var(--cyan), transparent);
-      opacity: 0.5;
+    /* The figure inside */
+    .char-fig {
+      position:absolute; bottom:-100%; left:50%; transform:translateX(-50%) scale(0.85);
+      width:62px; height:76px;
+      transition:bottom 0.38s cubic-bezier(.175,.885,.32,1.275), transform 0.38s;
+      filter:drop-shadow(0 4px 10px rgba(0,0,0,0.9));
+      cursor:pointer;
     }
+    .char-fig svg { width:100%; height:100%; }
+    .char-fig.up { bottom:5%; transform:translateX(-50%) scale(1); }
+    .char-fig.boss-glow svg { filter:drop-shadow(0 0 10px gold) drop-shadow(0 0 20px gold); }
 
-    .stats-row {
-      display: flex; gap: 32px;
-      align-items: center;
-    }
-    .stat-box {
-      display: flex; flex-direction: column;
-      align-items: center; gap: 4px;
-      padding: 12px 20px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-    }
-    .stat-label {
-      font-size: 0.65rem;
-      letter-spacing: 3px;
-      color: var(--cyan);
-      opacity: 0.7;
-    }
-    .stat-value {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 1.4rem;
-      color: var(--gold);
-      text-shadow: 0 0 10px var(--gold);
-    }
+    /* Name + pts under hole */
+    .char-info { margin-top:4px; display:flex; flex-direction:column; align-items:center; gap:1px; }
+    .char-name { font-size:0.52rem; letter-spacing:1px; color:var(--text); opacity:0.75; text-align:center; }
+    .char-pts  { font-family:'Orbitron',sans-serif; font-size:0.6rem; color:var(--gold);
+      text-shadow:0 0 6px var(--gold); }
 
-    /* Character preview strip */
-    .char-strip {
-      display: flex; gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-      justify-content: center;
-      max-width: 700px;
-    }
-    .char-card {
-      width: 70px; height: 90px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 4px;
-      padding: 6px 4px;
-      cursor: default;
-      transition: all 0.3s;
-      animation: cardFloat 3s ease-in-out infinite;
-    }
-    .char-card:nth-child(2) { animation-delay: 0.4s; }
-    .char-card:nth-child(3) { animation-delay: 0.8s; }
-    .char-card:nth-child(4) { animation-delay: 1.2s; }
-    .char-card:nth-child(5) { animation-delay: 1.6s; }
-    .char-card:nth-child(6) { animation-delay: 2.0s; }
-    .char-card:nth-child(7) { animation-delay: 2.4s; }
-    .char-card:nth-child(8) { animation-delay: 2.8s; }
-    @keyframes cardFloat {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-5px); }
-    }
-    .char-card:hover {
-      border-color: var(--cyan);
-      background: rgba(0, 229, 255, 0.08);
-      transform: translateY(-8px) scale(1.05);
-      box-shadow: 0 0 20px rgba(0,229,255,0.3);
-    }
-    .char-card svg { width: 44px; height: 54px; }
-    .char-pts {
-      font-size: 0.6rem;
-      color: var(--gold);
-      letter-spacing: 1px;
-    }
-    .char-name {
-      font-size: 0.55rem;
-      color: var(--text);
-      text-align: center;
-      letter-spacing: 0.5px;
-      opacity: 0.7;
-    }
-
+    /* ── LAUNCH BUTTON ── */
     .launch-btn {
-      position: relative;
-      font-family: 'Orbitron', sans-serif;
-      font-size: 1.1rem;
-      font-weight: 700;
-      letter-spacing: 4px;
-      color: var(--bg);
-      background: var(--cyan);
-      border: none;
-      padding: 16px 52px;
-      border-radius: 4px;
-      cursor: pointer;
-      text-transform: uppercase;
-      overflow: hidden;
-      transition: all 0.3s;
-      box-shadow:
-        0 0 20px rgba(0,229,255,0.5),
-        0 0 40px rgba(0,229,255,0.2);
+      position:relative; font-family:'Orbitron',sans-serif; font-size:1rem; font-weight:700;
+      letter-spacing:4px; color:#000; background:var(--cyan); border:none;
+      padding:15px 52px; border-radius:6px; cursor:pointer; text-transform:uppercase; overflow:hidden;
+      box-shadow:0 0 22px rgba(0,229,255,0.5),0 0 44px rgba(0,229,255,0.2); transition:all 0.25s; flex-shrink:0;
     }
-    .launch-btn::before {
-      content: '';
-      position: absolute; top: -50%; left: -75%;
-      width: 50%; height: 200%;
-      background: rgba(255,255,255,0.3);
-      transform: skewX(-20deg);
-      animation: btnShine 3s ease-in-out infinite;
-    }
-    @keyframes btnShine {
-      0%, 70%, 100% { left: -75%; }
-      40% { left: 130%; }
-    }
-    .launch-btn:hover {
-      background: #fff;
-      color: #000;
-      box-shadow: 0 0 40px rgba(0,229,255,0.9), 0 0 80px rgba(0,229,255,0.4);
-      transform: scale(1.05);
-    }
-    .launch-btn:active { transform: scale(0.98); }
+    .launch-btn::before { content:''; position:absolute; top:-50%; left:-75%; width:50%; height:200%;
+      background:rgba(255,255,255,0.35); transform:skewX(-20deg); animation:btnShine 3s ease-in-out infinite; }
+    @keyframes btnShine { 0%,70%,100%{left:-75%} 40%{left:130%} }
+    .launch-btn:hover { background:#fff; box-shadow:0 0 44px rgba(0,229,255,0.9),0 0 88px rgba(0,229,255,0.4); transform:scale(1.06); }
 
-    .footer-text {
-      position: fixed;
-      bottom: 24px; left: 50%;
-      transform: translateX(-50%);
-      font-size: 0.65rem;
-      letter-spacing: 3px;
-      color: rgba(200,230,255,0.3);
-      white-space: nowrap;
-    }
+    /* ── VFX DOM layer ── */
+    #domVfx { position:fixed; inset:0; z-index:6; pointer-events:none; }
 
-    /* Horizontal scrolling marquee at top */
-    .ticker {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      height: 28px;
-      background: rgba(0, 229, 255, 0.06);
-      border-bottom: 1px solid var(--border);
-      overflow: hidden;
-      z-index: 5;
-      display: flex; align-items: center;
-    }
-    .ticker-inner {
-      white-space: nowrap;
-      animation: tickerScroll 25s linear infinite;
-      font-size: 0.65rem;
-      letter-spacing: 2px;
-      color: var(--cyan);
-      opacity: 0.7;
-    }
-    @keyframes tickerScroll {
-      0% { transform: translateX(100vw); }
-      100% { transform: translateX(-100%); }
-    }
+    /* Popup explosion ring */
+    .pop-ring { position:absolute; border-radius:50%; border:3px solid; pointer-events:none;
+      animation:ringOut 0.55s ease-out forwards; }
+    @keyframes ringOut { 0%{transform:translate(-50%,-50%) scale(0.1);opacity:1}
+                        100%{transform:translate(-50%,-50%) scale(2.8);opacity:0} }
+
+    /* Popup sparks */
+    .pop-spark { position:absolute; width:5px; height:5px; border-radius:50%; pointer-events:none;
+      animation:sparkFly var(--d,0.6s) ease-out forwards; }
+    @keyframes sparkFly { 0%{transform:translate(0,0) scale(1);opacity:1}
+                          100%{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0} }
+
+    /* Popup glow flash */
+    .pop-flash { position:absolute; border-radius:50%; pointer-events:none;
+      animation:flashOut 0.35s ease-out forwards; }
+    @keyframes flashOut { 0%{transform:translate(-50%,-50%) scale(0.5);opacity:0.9}
+                          100%{transform:translate(-50%,-50%) scale(3);opacity:0} }
+
+    /* Laser bolt (ship) */
+    .laser-bolt { position:fixed; height:4px; border-radius:2px; pointer-events:none; z-index:7;
+      animation:boltFly var(--dur,0.5s) linear forwards; }
+    @keyframes boltFly { 0%{opacity:1} 90%{opacity:1} 100%{opacity:0} }
+
+    /* Ship label */
+    .ship-wrap { position:fixed; z-index:8; pointer-events:none;
+      animation:shipFly var(--sdur,5s) linear forwards; }
+    @keyframes shipFly { 0%{left:-160px;opacity:1} 100%{left:calc(100vw + 160px);opacity:1} }
+
+    .footer-text { position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+      font-size:0.58rem; letter-spacing:3px; color:rgba(200,230,255,0.25); white-space:nowrap; z-index:6; }
   </style>
 </head>
 <body>
 
-<canvas id="starfield"></canvas>
+<canvas id="bgCanvas"></canvas>
+<canvas id="vfxCanvas"></canvas>
 <div class="scanlines"></div>
 <div class="vignette"></div>
-<div class="scan-line"></div>
+<div class="scan-sweep"></div>
+<div id="domVfx"></div>
 
 <div class="ticker">
   <div class="ticker-inner">
-    ★ IMPERIAL FORCES DETECTED ★ CLONE ARMY MOBILIZING ★ XENOMORPH THREAT LEVEL: CRITICAL ★ DARK SIDE ACTIVITY INCREASING ★ PREDATOR SIGHTINGS REPORTED ★ R2 UNITS GONE ROGUE ★ YODA SIGHTINGS NEAR DAGOBAH ★ BOBA FETT BOUNTY ACTIVE ★
+    ★ IMPERIAL FORCES DETECTED ★ CLONE ARMY MOBILIZING ★ XENOMORPH THREAT LEVEL: CRITICAL ★
+    DARK SIDE ACTIVITY INCREASING ★ PREDATOR SIGHTINGS REPORTED ★ R2 UNITS GONE ROGUE ★
+    YODA SIGHTINGS NEAR DAGOBAH ★ BOBA FETT BOUNTY ACTIVE ★ GALACTIC MOLE HUNTER SYSTEM ONLINE ★
   </div>
 </div>
 
-<div class="bracket tl"></div>
-<div class="bracket tr"></div>
-<div class="bracket bl"></div>
-<div class="bracket br"></div>
+<div class="br tl"></div>
+<div class="br tr"></div>
+<div class="br bl"></div>
+<div class="br br2"></div>
 
-<div class="launcher">
+<div class="lobby">
 
   <!-- Emblem -->
   <svg class="emblem" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="45" fill="none" stroke="#00e5ff" stroke-width="1.5" opacity="0.6"/>
-    <circle cx="50" cy="50" r="36" fill="none" stroke="#00e5ff" stroke-width="0.5" opacity="0.4"/>
-    <polygon points="50,8 56,30 78,30 61,44 67,66 50,52 33,66 39,44 22,30 44,30" fill="none" stroke="#00e5ff" stroke-width="1.5" opacity="0.8"/>
+    <circle cx="50" cy="50" r="45" fill="none" stroke="#00e5ff" stroke-width="1.5" opacity="0.55"/>
+    <circle cx="50" cy="50" r="36" fill="none" stroke="#00e5ff" stroke-width="0.5" opacity="0.35"/>
+    <polygon points="50,8 56,30 78,30 61,44 67,66 50,52 33,66 39,44 22,30 44,30"
+             fill="none" stroke="#00e5ff" stroke-width="1.5" opacity="0.8"/>
     <circle cx="50" cy="50" r="5" fill="#00e5ff" opacity="0.9"/>
-    <!-- tick marks -->
     <line x1="50" y1="5" x2="50" y2="12" stroke="#00e5ff" stroke-width="1.5" opacity="0.5"/>
     <line x1="50" y1="88" x2="50" y2="95" stroke="#00e5ff" stroke-width="1.5" opacity="0.5"/>
     <line x1="5" y1="50" x2="12" y2="50" stroke="#00e5ff" stroke-width="1.5" opacity="0.5"/>
@@ -311,304 +203,636 @@
   </svg>
 
   <h1 class="game-title">GALACTIC<br>MOLE HUNTER</h1>
-  <p class="game-subtitle">Defend the Galaxy. Eliminate the Threat.</p>
-
+  <p class="subtitle">Defend the Galaxy — Eliminate the Threat</p>
   <div class="divider"></div>
 
   <div class="stats-row">
     <div class="stat-box">
-      <span class="stat-label">TOP SCORE</span>
+      <span class="stat-label">Top Score</span>
       <span class="stat-value" id="highScore">000000</span>
     </div>
     <div class="stat-box">
-      <span class="stat-label">MISSION TIME</span>
+      <span class="stat-label">Mission Time</span>
       <span class="stat-value">60 SEC</span>
     </div>
     <div class="stat-box">
-      <span class="stat-label">ENEMY TYPES</span>
+      <span class="stat-label">Enemy Types</span>
       <span class="stat-value">8</span>
     </div>
   </div>
 
-  <!-- Character preview strip -->
-  <div class="char-strip" id="charStrip"></div>
+  <!-- Character showcase -->
+  <div class="showcase-wrap">
+    <div class="showcase-label">— Enemy Roster —</div>
+    <div class="char-stage" id="charStage"></div>
+  </div>
 
-  <button class="launch-btn" onclick="window.location.href='game.html'">
-    ▶ LAUNCH MISSION
-  </button>
+  <button class="launch-btn" onclick="window.location.href='game.html'">▶ LAUNCH MISSION</button>
 
 </div>
 
-<div class="footer-text">GALACTIC MOLE HUNTER v1.0 &nbsp;·&nbsp; CLASSIFIED IMPERIAL DATABASE</div>
+<div class="footer-text">GALACTIC MOLE HUNTER v2.0 &nbsp;·&nbsp; CLASSIFIED IMPERIAL DATABASE</div>
 
 <script>
-  // ─── Starfield ───
-  const canvas = document.getElementById('starfield');
-  const ctx = canvas.getContext('2d');
-  let stars = [];
+// ═══════════════════════════════════════════════════════════
+//  SVG LIBRARY (same detailed set as game.html)
+// ═══════════════════════════════════════════════════════════
+const SVGS = {
+  trooper:`<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+  <defs><radialGradient id="tg1" cx="35%" cy="30%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#bbb"/></radialGradient>
+  <radialGradient id="tg2" cx="35%" cy="30%"><stop offset="0%" stop-color="#ddd"/><stop offset="100%" stop-color="#999"/></radialGradient>
+  <filter id="tf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity="0.6"/></filter></defs>
+  <g filter="url(#tf)">
+  <ellipse cx="50" cy="80" rx="30" ry="28" fill="url(#tg2)" stroke="#888" stroke-width="1"/>
+  <path d="M30 68 Q50 64 70 68 L68 82 Q50 86 32 82 Z" fill="#ccc" stroke="#aaa" stroke-width="0.5"/>
+  <line x1="50" y1="66" x2="50" y2="84" stroke="#999" stroke-width="0.8"/>
+  <line x1="35" y1="74" x2="65" y2="74" stroke="#aaa" stroke-width="0.8"/>
+  <rect x="44" y="42" width="12" height="10" rx="3" fill="#ccc" stroke="#aaa"/>
+  <ellipse cx="50" cy="34" rx="26" ry="26" fill="url(#tg1)" stroke="#ccc" stroke-width="1.5"/>
+  <path d="M24 34 Q50 8 76 34" fill="none" stroke="#ddd" stroke-width="2"/>
+  <rect x="24" y="32" width="52" height="12" rx="3" fill="#111" stroke="#333"/>
+  <rect x="46" y="32" width="8" height="12" rx="1" fill="#0a0a0a"/>
+  <ellipse cx="36" cy="38" rx="8" ry="5" fill="#222"/>
+  <ellipse cx="64" cy="38" rx="8" ry="5" fill="#222"/>
+  <ellipse cx="33" cy="36" rx="2" ry="1.5" fill="#fff" opacity="0.3"/>
+  <ellipse cx="61" cy="36" rx="2" ry="1.5" fill="#fff" opacity="0.3"/>
+  <path d="M38 44 Q50 48 62 44" fill="none" stroke="#aaa" stroke-width="1"/>
+  <rect x="32" y="104" width="15" height="14" rx="4" fill="#bbb" stroke="#999"/>
+  <rect x="53" y="104" width="15" height="14" rx="4" fill="#bbb" stroke="#999"/>
+  <ellipse cx="39" cy="106" rx="7" ry="4" fill="#ccc"/>
+  <ellipse cx="60" cy="106" rx="7" ry="4" fill="#ccc"/>
+  </g></svg>`,
 
-  function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+  clone:`<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+  <defs><radialGradient id="cg1" cx="35%" cy="25%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#d0e8ff"/></radialGradient>
+  <radialGradient id="cg2" cx="35%" cy="30%"><stop offset="0%" stop-color="#e0f0ff"/><stop offset="100%" stop-color="#a0c8e8"/></radialGradient>
+  <filter id="cf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity="0.6"/></filter></defs>
+  <g filter="url(#cf)">
+  <ellipse cx="50" cy="80" rx="30" ry="28" fill="url(#cg2)" stroke="#88aacc" stroke-width="1"/>
+  <path d="M30 68 Q50 64 70 68 L68 82 Q50 86 32 82 Z" fill="#cce4ff" stroke="#99bbdd" stroke-width="0.5"/>
+  <path d="M30 68 Q50 63 70 68 L70 72 Q50 68 30 72 Z" fill="#0066cc" opacity="0.8"/>
+  <rect x="44" y="42" width="12" height="10" rx="3" fill="#d0e8ff" stroke="#88aacc"/>
+  <ellipse cx="50" cy="34" rx="26" ry="26" fill="url(#cg1)" stroke="#bbddff" stroke-width="1.5"/>
+  <path d="M24 34 Q50 8 76 34" fill="none" stroke="#ddeeff" stroke-width="2"/>
+  <rect x="24" y="30" width="52" height="14" rx="3" fill="#111" stroke="#333"/>
+  <rect x="44" y="30" width="12" height="14" rx="2" fill="#080808"/>
+  <ellipse cx="36" cy="37" rx="8" ry="5" fill="#1a3a5a"/>
+  <ellipse cx="64" cy="37" rx="8" ry="5" fill="#1a3a5a"/>
+  <ellipse cx="34" cy="35" rx="2" ry="1.5" fill="#4488ff" opacity="0.6"/>
+  <ellipse cx="62" cy="35" rx="2" ry="1.5" fill="#4488ff" opacity="0.6"/>
+  <rect x="38" y="44" width="24" height="4" rx="2" fill="#0044aa" opacity="0.9"/>
+  <rect x="32" y="104" width="15" height="14" rx="4" fill="#d0e8ff" stroke="#88aacc"/>
+  <rect x="53" y="104" width="15" height="14" rx="4" fill="#d0e8ff" stroke="#88aacc"/>
+  </g></svg>`,
+
+  xenomorph:`<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+  <defs><radialGradient id="xg1" cx="40%" cy="30%"><stop offset="0%" stop-color="#1a2e1a"/><stop offset="100%" stop-color="#050f05"/></radialGradient>
+  <filter id="xf"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#003300" flood-opacity="0.5"/></filter>
+  <linearGradient id="xridge" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#2a4a2a"/><stop offset="100%" stop-color="#050d05"/></linearGradient></defs>
+  <g filter="url(#xf)">
+  <path d="M32 50 Q28 20 50 8 Q72 20 68 50 Q75 75 70 90 Q55 100 45 100 Q30 95 25 75 Z" fill="url(#xg1)" stroke="#1a3a1a" stroke-width="1.5"/>
+  <path d="M50 8 L50 55" stroke="url(#xridge)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M50 8 Q38 22 32 42" fill="none" stroke="#1a3a1a" stroke-width="2"/>
+  <path d="M50 8 Q62 22 68 42" fill="none" stroke="#1a3a1a" stroke-width="2"/>
+  <ellipse cx="38" cy="55" rx="9" ry="7" fill="#0a1a0a"/>
+  <ellipse cx="38" cy="55" rx="6" ry="5" fill="#0e2a0e"/>
+  <ellipse cx="38" cy="54" rx="3.5" ry="3" fill="#44ff44" opacity="0.5"/>
+  <ellipse cx="37" cy="53" rx="1.5" ry="1.5" fill="#aaffaa" opacity="0.7"/>
+  <ellipse cx="62" cy="55" rx="9" ry="7" fill="#0a1a0a"/>
+  <ellipse cx="62" cy="55" rx="6" ry="5" fill="#0e2a0e"/>
+  <ellipse cx="62" cy="54" rx="3.5" ry="3" fill="#44ff44" opacity="0.5"/>
+  <ellipse cx="61" cy="53" rx="1.5" ry="1.5" fill="#aaffaa" opacity="0.7"/>
+  <path d="M38 76 Q50 82 62 76" fill="none" stroke="#2a5a2a" stroke-width="1.5"/>
+  <line x1="42" y1="77" x2="41" y2="84" stroke="#1a4a1a" stroke-width="1.5"/>
+  <line x1="50" y1="78" x2="50" y2="86" stroke="#1a4a1a" stroke-width="2"/>
+  <line x1="58" y1="77" x2="59" y2="84" stroke="#1a4a1a" stroke-width="1.5"/>
+  <path d="M30 98 Q24 118 28 126 Q50 132 72 126 Q76 118 70 98 Q55 106 45 106 Z" fill="#0a180a" stroke="#1a3a1a"/>
+  <path d="M34 104 Q50 100 66 104" fill="none" stroke="#1a3a1a" stroke-width="1"/>
+  <path d="M32 112 Q50 107 68 112" fill="none" stroke="#1a3a1a" stroke-width="1"/>
+  </g></svg>`,
+
+  r2d2:`<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+  <defs><radialGradient id="rg1" cx="35%" cy="25%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#c8d8f0"/></radialGradient>
+  <radialGradient id="rg2" cx="30%" cy="30%"><stop offset="0%" stop-color="#3355bb"/><stop offset="100%" stop-color="#1122aa"/></radialGradient>
+  <radialGradient id="rg3" cx="30%" cy="25%"><stop offset="0%" stop-color="#88aaff"/><stop offset="100%" stop-color="#2244cc"/></radialGradient>
+  <filter id="rf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000055" flood-opacity="0.5"/></filter></defs>
+  <g filter="url(#rf)">
+  <ellipse cx="50" cy="30" rx="28" ry="26" fill="url(#rg1)" stroke="#aabbdd" stroke-width="1.5"/>
+  <path d="M23 30 Q50 5 77 30 L77 36 Q50 12 23 36 Z" fill="url(#rg2)" opacity="0.9"/>
+  <circle cx="50" cy="38" r="11" fill="#1a1a2a" stroke="#4488ff" stroke-width="2"/>
+  <circle cx="50" cy="38" r="8" fill="#223388"/>
+  <circle cx="50" cy="38" r="5" fill="url(#rg3)"/>
+  <circle cx="50" cy="38" r="2" fill="#aaccff"/>
+  <circle cx="48" cy="36" r="1" fill="#fff" opacity="0.7"/>
+  <circle cx="34" cy="24" r="4" fill="#4488ff" stroke="#aaccff" stroke-width="1"/>
+  <circle cx="34" cy="24" r="2" fill="#88aaff"/>
+  <rect x="20" y="54" width="60" height="50" rx="8" fill="url(#rg1)" stroke="#aabbdd" stroke-width="1.5"/>
+  <rect x="20" y="54" width="60" height="12" rx="4" fill="url(#rg2)" opacity="0.9"/>
+  <rect x="28" y="70" width="20" height="16" rx="3" fill="#223388" stroke="#4488ff" stroke-width="1"/>
+  <circle cx="33" cy="76" r="3" fill="#ff4444"/>
+  <circle cx="42" cy="76" r="3" fill="#44ff44"/>
+  <circle cx="33" cy="83" r="2.5" fill="#4444ff"/>
+  <circle cx="42" cy="83" r="2.5" fill="#ffff44"/>
+  <rect x="52" y="70" width="22" height="16" rx="3" fill="#c8d8ff"/>
+  <line x1="54" y1="75" x2="72" y2="75" stroke="#4488ff" stroke-width="1.5"/>
+  <line x1="54" y1="80" x2="72" y2="80" stroke="#4488ff" stroke-width="1.5"/>
+  <rect x="28" y="104" width="16" height="10" rx="4" fill="#c8d8ff" stroke="#aabbdd"/>
+  <rect x="56" y="104" width="16" height="10" rx="4" fill="#c8d8ff" stroke="#aabbdd"/>
+  </g></svg>`,
+
+  yoda:`<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+  <defs><radialGradient id="yg1" cx="35%" cy="30%"><stop offset="0%" stop-color="#8acc6a"/><stop offset="100%" stop-color="#4a8a2a"/></radialGradient>
+  <radialGradient id="yg2" cx="40%" cy="35%"><stop offset="0%" stop-color="#6aaa4a"/><stop offset="100%" stop-color="#3a7020"/></radialGradient>
+  <filter id="yf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#002200" flood-opacity="0.5"/></filter></defs>
+  <g filter="url(#yf)">
+  <path d="M14 44 Q8 34 10 24 Q14 14 22 20 L28 40 Z" fill="url(#yg2)" stroke="#3a7020" stroke-width="1.5"/>
+  <path d="M86 44 Q92 34 90 24 Q86 14 78 20 L72 40 Z" fill="url(#yg2)" stroke="#3a7020" stroke-width="1.5"/>
+  <ellipse cx="50" cy="40" rx="32" ry="34" fill="url(#yg1)" stroke="#4a8a2a" stroke-width="1.5"/>
+  <path d="M32 28 Q42 24 58 28" fill="none" stroke="#3a7020" stroke-width="1.5"/>
+  <ellipse cx="37" cy="44" rx="10" ry="8" fill="#1a1a0a" stroke="#2a2a0a" stroke-width="1"/>
+  <ellipse cx="63" cy="44" rx="10" ry="8" fill="#1a1a0a" stroke="#2a2a0a" stroke-width="1"/>
+  <ellipse cx="37" cy="44" rx="7" ry="5.5" fill="#3a2a0a"/>
+  <ellipse cx="63" cy="44" rx="7" ry="5.5" fill="#3a2a0a"/>
+  <ellipse cx="36" cy="43" rx="3.5" ry="3.5" fill="#aacc88"/>
+  <ellipse cx="62" cy="43" rx="3.5" ry="3.5" fill="#aacc88"/>
+  <circle cx="35" cy="42" r="1.5" fill="#fff" opacity="0.7"/>
+  <circle cx="61" cy="42" r="1.5" fill="#fff" opacity="0.7"/>
+  <path d="M38 62 Q50 70 62 62" fill="none" stroke="#3a7020" stroke-width="2"/>
+  <path d="M20 70 Q26 64 50 62 Q74 64 80 70 L84 118 Q50 124 16 118 Z" fill="#4a3a2a" stroke="#3a2a1a" stroke-width="1"/>
+  <path d="M24 78 Q50 74 76 78" fill="none" stroke="#5a4a3a" stroke-width="1"/>
+  <line x1="74" y1="80" x2="78" y2="120" stroke="#5a4a2a" stroke-width="3" stroke-linecap="round"/>
+  </g></svg>`,
+
+  boba:`<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+  <defs><radialGradient id="bg1" cx="35%" cy="25%"><stop offset="0%" stop-color="#8aaa7a"/><stop offset="100%" stop-color="#4a6a3a"/></radialGradient>
+  <radialGradient id="bg2" cx="35%" cy="30%"><stop offset="0%" stop-color="#7a9a6a"/><stop offset="100%" stop-color="#3a5a2a"/></radialGradient>
+  <filter id="bff"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#001100" flood-opacity="0.5"/></filter></defs>
+  <g filter="url(#bff)">
+  <ellipse cx="50" cy="82" rx="30" ry="28" fill="url(#bg2)" stroke="#3a5a2a" stroke-width="1.5"/>
+  <path d="M32 70 Q50 66 68 70 L66 84 Q50 88 34 84 Z" fill="#6a8a5a" stroke="#4a6a3a" stroke-width="0.5"/>
+  <rect x="41" y="68" width="18" height="18" rx="2" fill="#5a7a4a" stroke="#3a5a2a"/>
+  <circle cx="50" cy="77" r="4" fill="#4a6a3a" stroke="#2a4a1a" stroke-width="0.5"/>
+  <rect x="60" y="62" width="12" height="20" rx="4" fill="#5a7a5a" stroke="#3a5a2a"/>
+  <rect x="62" y="58" width="8" height="8" rx="2" fill="#4a6a4a"/>
+  <rect x="44" y="44" width="12" height="10" rx="3" fill="#6a8a5a" stroke="#4a6a3a"/>
+  <ellipse cx="50" cy="32" rx="27" ry="26" fill="url(#bg1)" stroke="#4a6a3a" stroke-width="1.5"/>
+  <path d="M23 32 Q50 6 77 32" fill="none" stroke="#6a8a5a" stroke-width="2.5"/>
+  <rect x="24" y="28" width="52" height="14" rx="3" fill="#111"/>
+  <rect x="44" y="28" width="12" height="14" rx="2" fill="#0a0a0a"/>
+  <rect x="24" y="28" width="52" height="14" rx="3" fill="#004400" opacity="0.5"/>
+  <rect x="64" y="14" width="5" height="16" rx="2" fill="#4a6a3a" stroke="#2a4a1a"/>
+  <circle cx="66.5" cy="14" r="3" fill="#cc0000" stroke="#990000"/>
+  <rect x="30" y="106" width="15" height="12" rx="4" fill="#6a8a5a" stroke="#4a6a3a"/>
+  <rect x="55" y="106" width="15" height="12" rx="4" fill="#6a8a5a" stroke="#4a6a3a"/>
+  </g></svg>`,
+
+  predator:`<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+  <defs><radialGradient id="pg1" cx="35%" cy="30%"><stop offset="0%" stop-color="#cc9944"/><stop offset="100%" stop-color="#7a5010"/></radialGradient>
+  <filter id="pf"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#220000" flood-opacity="0.5"/></filter></defs>
+  <g filter="url(#pf)">
+  <path d="M26 14 Q18 4 14 0 L20 18" stroke="#8a6020" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M34 10 Q28 0 26 -2 L32 14" stroke="#8a6020" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M44 8 Q40 -2 42 -4 L46 10" stroke="#8a6020" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M56 8 Q60 -2 58 -4 L54 10" stroke="#8a6020" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M66 10 Q72 0 74 -2 L68 14" stroke="#8a6020" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M74 14 Q82 4 86 0 L80 18" stroke="#8a6020" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <ellipse cx="50" cy="48" rx="32" ry="34" fill="url(#pg1)" stroke="#7a5010" stroke-width="1.5"/>
+  <path d="M28 38 Q38 34 62 38" fill="none" stroke="#8a5a18" stroke-width="2"/>
+  <ellipse cx="36" cy="48" rx="9" ry="7" fill="#1a1800"/>
+  <ellipse cx="36" cy="48" rx="6" ry="5" fill="#2a2400"/>
+  <ellipse cx="36" cy="47" rx="3" ry="3" fill="#ffcc00" opacity="0.9"/>
+  <ellipse cx="35" cy="46" rx="1.5" ry="1.5" fill="#ffee88" opacity="0.8"/>
+  <ellipse cx="64" cy="48" rx="9" ry="7" fill="#1a1800"/>
+  <ellipse cx="64" cy="48" rx="6" ry="5" fill="#2a2400"/>
+  <ellipse cx="64" cy="47" rx="3" ry="3" fill="#ffcc00" opacity="0.9"/>
+  <ellipse cx="63" cy="46" rx="1.5" ry="1.5" fill="#ffee88" opacity="0.8"/>
+  <path d="M38 66 L34 76 M44 68 L41 80 M56 68 L59 80 M62 66 L66 76" stroke="#7a5010" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M68 36 Q76 30 80 36 L78 46 Q72 50 70 44 Z" fill="#4a3010" stroke="#2a1a00"/>
+  <circle cx="74" cy="38" r="3" fill="#cc2200" stroke="#aa0000"/>
+  <rect x="22" y="86" width="56" height="40" rx="6" fill="#bb8833" stroke="#6a4010" stroke-width="1.5"/>
+  <circle cx="38" cy="96" r="4" fill="#cc2200" stroke="#aa0000"/>
+  <circle cx="50" cy="96" r="4" fill="#2222cc" stroke="#0000aa"/>
+  <circle cx="62" cy="96" r="4" fill="#cc2200" stroke="#aa0000"/>
+  </g></svg>`,
+
+  vader:`<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+  <defs><radialGradient id="vg1" cx="35%" cy="25%"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#080808"/></radialGradient>
+  <radialGradient id="vg2" cx="40%" cy="30%"><stop offset="0%" stop-color="#1a1a1a"/><stop offset="100%" stop-color="#030303"/></radialGradient>
+  <radialGradient id="vgE" cx="30%" cy="30%"><stop offset="0%" stop-color="#ff4444"/><stop offset="100%" stop-color="#880000"/></radialGradient>
+  <filter id="vf2"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#ff0000" flood-opacity="0.15"/></filter></defs>
+  <g filter="url(#vf2)">
+  <rect x="4" y="50" width="18" height="26" rx="4" fill="url(#vg2)" stroke="#2a2a2a"/>
+  <rect x="78" y="50" width="18" height="26" rx="4" fill="url(#vg2)" stroke="#2a2a2a"/>
+  <ellipse cx="50" cy="84" rx="34" ry="30" fill="url(#vg2)" stroke="#1a1a1a" stroke-width="1.5"/>
+  <rect x="30" y="72" width="40" height="28" rx="4" fill="#111"/>
+  <rect x="32" y="74" width="16" height="10" rx="2" fill="#1a1a1a" stroke="#222"/>
+  <circle cx="35" cy="79" r="2.5" fill="#ff0000"/>
+  <circle cx="41" cy="79" r="2.5" fill="#00ff00"/>
+  <circle cx="35" cy="86" r="2" fill="#0000ff"/>
+  <circle cx="41" cy="86" r="2" fill="#ffff00"/>
+  <rect x="52" y="74" width="16" height="20" rx="2" fill="#222"/>
+  <path d="M16 56 Q10 80 14 110 Q20 118 50 120 Q80 118 86 110 Q90 80 84 56" fill="#0a0a0a" opacity="0.8"/>
+  <rect x="38" y="42" width="24" height="12" rx="4" fill="#111" stroke="#222" stroke-width="1.5"/>
+  <ellipse cx="50" cy="30" rx="30" ry="30" fill="url(#vg1)" stroke="#222" stroke-width="1.5"/>
+  <path d="M20 30 Q50 0 80 30" fill="none" stroke="#2a2a2a" stroke-width="2.5"/>
+  <path d="M24 34 Q34 28 50 26 Q66 28 76 34 L74 56 Q60 68 40 68 L26 56 Z" fill="#0a0a0a" stroke="#1a1a1a"/>
+  <line x1="35" y1="56" x2="65" y2="56" stroke="#2a2a2a" stroke-width="2"/>
+  <line x1="35" y1="61" x2="65" y2="61" stroke="#2a2a2a" stroke-width="1.5"/>
+  <line x1="35" y1="66" x2="65" y2="66" stroke="#2a2a2a" stroke-width="1.5"/>
+  <ellipse cx="35" cy="44" rx="11" ry="7" fill="#1a0000" stroke="#330000" stroke-width="1"/>
+  <ellipse cx="35" cy="44" rx="8" ry="5" fill="url(#vgE)"/>
+  <ellipse cx="35" cy="43" rx="5" ry="3.5" fill="#ff3333"/>
+  <ellipse cx="33" cy="42" rx="2.5" ry="2" fill="#ff8888" opacity="0.8"/>
+  <ellipse cx="35" cy="44" rx="13" ry="9" fill="#ff0000" opacity="0.08"/>
+  <ellipse cx="65" cy="44" rx="11" ry="7" fill="#1a0000" stroke="#330000" stroke-width="1"/>
+  <ellipse cx="65" cy="44" rx="8" ry="5" fill="url(#vgE)"/>
+  <ellipse cx="65" cy="43" rx="5" ry="3.5" fill="#ff3333"/>
+  <ellipse cx="63" cy="42" rx="2.5" ry="2" fill="#ff8888" opacity="0.8"/>
+  <ellipse cx="65" cy="44" rx="13" ry="9" fill="#ff0000" opacity="0.08"/>
+  </g></svg>`
+};
+
+// ═══════════════════════════════════════════════════════════
+//  ENEMY DATA
+// ═══════════════════════════════════════════════════════════
+const ENEMIES = [
+  { id:'trooper',   name:'Stormtrooper', pts:'+10', color:'#cccccc' },
+  { id:'clone',     name:'Clone',        pts:'+10', color:'#88ccff' },
+  { id:'xenomorph', name:'Xenomorph',    pts:'+20', color:'#44ff88' },
+  { id:'r2d2',      name:'R2-D2',        pts:'+20', color:'#4488ff' },
+  { id:'yoda',      name:'Yoda',         pts:'+30', color:'#88dd44' },
+  { id:'boba',      name:'Boba Fett',    pts:'+30', color:'#88bb55' },
+  { id:'predator',  name:'Predator',     pts:'+40', color:'#ffcc22' },
+  { id:'vader',     name:'Vader',        pts:'+50', color:'#ff4466' },
+];
+
+// ═══════════════════════════════════════════════════════════
+//  BUILD SHOWCASE SLOTS
+// ═══════════════════════════════════════════════════════════
+const stage = document.getElementById('charStage');
+const slots = [];
+const figs  = [];
+
+ENEMIES.forEach((e, i) => {
+  const slot = document.createElement('div'); slot.className='char-slot';
+  const hole = document.createElement('div'); hole.className='char-hole';
+  const fig  = document.createElement('div'); fig.className='char-fig';
+  fig.innerHTML = SVGS[e.id];
+  if(e.id==='vader') fig.classList.add('boss-glow');
+
+  hole.appendChild(fig);
+  const info = document.createElement('div'); info.className='char-info';
+  info.innerHTML = `<span class="char-name">${e.name}</span><span class="char-pts">${e.pts}</span>`;
+  slot.appendChild(hole);
+  slot.appendChild(info);
+  stage.appendChild(slot);
+  slots.push({ slot, hole, fig, enemy:e });
+  figs.push(fig);
+});
+
+// ═══════════════════════════════════════════════════════════
+//  HIGH SCORE
+// ═══════════════════════════════════════════════════════════
+const hs = parseInt(localStorage.getItem('gmh_highscore')||'0');
+document.getElementById('highScore').textContent = String(hs).padStart(6,'0');
+
+// ═══════════════════════════════════════════════════════════
+//  DOM VFX — explosion + pop
+// ═══════════════════════════════════════════════════════════
+const domVfx = document.getElementById('domVfx');
+
+function popExplosion(hole, color){
+  const rect = hole.getBoundingClientRect();
+  const cx = rect.left + rect.width/2;
+  const cy = rect.top  + rect.height/2;
+
+  // Glow flash
+  const flash = document.createElement('div');
+  flash.className='pop-flash';
+  flash.style.cssText=`left:${cx}px;top:${cy}px;width:80px;height:80px;
+    background:radial-gradient(circle,${color},transparent);margin:-40px 0 0 -40px`;
+  domVfx.appendChild(flash);
+  setTimeout(()=>flash.remove(), 380);
+
+  // 3 expanding rings
+  [0, 80, 160].forEach(delay=>{
+    setTimeout(()=>{
+      const ring = document.createElement('div');
+      ring.className='pop-ring';
+      ring.style.cssText=`left:${cx}px;top:${cy}px;width:60px;height:60px;
+        border-color:${color};margin:-30px 0 0 -30px;
+        box-shadow:0 0 10px ${color},inset 0 0 10px ${color}`;
+      domVfx.appendChild(ring);
+      setTimeout(()=>ring.remove(), 600);
+    }, delay);
+  });
+
+  // Spark burst (16 sparks)
+  for(let i=0;i<16;i++){
+    const angle = (i/16)*Math.PI*2;
+    const dist  = 40 + Math.random()*70;
+    const spark = document.createElement('div');
+    spark.className='pop-spark';
+    spark.style.cssText=`left:${cx}px;top:${cy}px;
+      background:${Math.random()<0.5?color:'#ffffff'};
+      --tx:${Math.cos(angle)*dist}px;--ty:${Math.sin(angle)*dist}px;
+      --d:${0.3+Math.random()*0.5}s;margin:-2.5px 0 0 -2.5px`;
+    domVfx.appendChild(spark);
+    setTimeout(()=>spark.remove(), 900);
   }
 
-  function initStars() {
-    stars = [];
-    for (let i = 0; i < 280; i++) {
-      stars.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        r: Math.random() * 1.8 + 0.2,
-        speed: Math.random() * 0.3 + 0.05,
-        twinkle: Math.random() * Math.PI * 2,
-        twinkleSpeed: Math.random() * 0.03 + 0.01,
-        color: ['#fff', '#adf', '#cef', '#ffd', '#faa'][Math.floor(Math.random() * 5)]
+  // Hole rim glow
+  hole.style.boxShadow = `inset 0 6px 24px rgba(0,0,0,0.95),0 0 0 1px rgba(0,100,255,0.12),
+    0 0 20px ${color}, 0 0 40px ${color}88`;
+  setTimeout(()=>{ hole.style.boxShadow=''; }, 700);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SHOWCASE POP SEQUENCE
+// ═══════════════════════════════════════════════════════════
+let currentUp = new Set();
+let popOrder  = [...Array(8).keys()];
+
+function shuffleArray(a){ for(let i=a.length-1;i>0;i--){ const j=~~(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
+
+function popOne(){
+  // Pop up 1–3 random ones
+  const available = popOrder.filter(i=>!currentUp.has(i));
+  if(!available.length){ shuffleArray(popOrder); return; }
+
+  const count = Math.min(1+~~(Math.random()*2), available.length);
+  for(let k=0;k<count;k++){
+    const i = available[~~(Math.random()*available.length)];
+    available.splice(available.indexOf(i),1);
+    if(currentUp.has(i)) continue;
+
+    currentUp.add(i);
+    const { fig, hole, enemy } = slots[i];
+    fig.classList.add('up');
+    popExplosion(hole, enemy.color);
+
+    const stayMs = 1600 + Math.random()*1200;
+    setTimeout(()=>{ fig.classList.remove('up'); currentUp.delete(i); }, stayMs);
+  }
+}
+
+// Pop one now then continue on interval
+setTimeout(popOne, 500);
+setInterval(popOne, 1200);
+
+// ═══════════════════════════════════════════════════════════
+//  BACKGROUND CANVAS — starfield + nebula
+// ═══════════════════════════════════════════════════════════
+const bgC = document.getElementById('bgCanvas');
+const bgX = bgC.getContext('2d');
+let stars=[];
+
+function resizeBg(){ bgC.width=innerWidth; bgC.height=innerHeight; }
+function initStars(){
+  stars=[];
+  for(let i=0;i<300;i++) stars.push({
+    x:Math.random()*bgC.width, y:Math.random()*bgC.height,
+    r:Math.random()*1.8+0.2, speed:Math.random()*0.3+0.04,
+    tw:Math.random()*Math.PI*2, tws:Math.random()*0.025+0.008,
+    c:['#fff','#adf','#cef','#ffd','#fcc','#cff'][~~(Math.random()*6)]
+  });
+}
+function drawBg(){
+  bgX.clearRect(0,0,bgC.width,bgC.height);
+  [[0.15,0.25,320,'rgba(70,0,160,0.07)'],[0.82,0.72,260,'rgba(0,80,200,0.07)'],
+   [0.5,0.5,400,'rgba(0,120,220,0.04)'],[0.3,0.7,200,'rgba(120,0,100,0.05)']].forEach(([cx,cy,r,c])=>{
+    const g=bgX.createRadialGradient(bgC.width*cx,bgC.height*cy,0,bgC.width*cx,bgC.height*cy,r);
+    g.addColorStop(0,c); g.addColorStop(1,'transparent');
+    bgX.fillStyle=g; bgX.fillRect(0,0,bgC.width,bgC.height);
+  });
+  stars.forEach(s=>{
+    s.tw+=s.tws;
+    bgX.globalAlpha=0.25+0.75*Math.abs(Math.sin(s.tw));
+    bgX.fillStyle=s.c;
+    bgX.beginPath(); bgX.arc(s.x,s.y,s.r,0,Math.PI*2); bgX.fill();
+    s.y+=s.speed; if(s.y>bgC.height){s.y=0;s.x=Math.random()*bgC.width;}
+  });
+  bgX.globalAlpha=1;
+  requestAnimationFrame(drawBg);
+}
+resizeBg(); initStars(); drawBg();
+window.addEventListener('resize',()=>{ resizeBg(); initStars(); });
+
+// ═══════════════════════════════════════════════════════════
+//  VFX CANVAS — ship lasers, trails
+// ═══════════════════════════════════════════════════════════
+const vfxC = document.getElementById('vfxCanvas');
+const vfxX = vfxC.getContext('2d');
+
+function resizeVfx(){ vfxC.width=innerWidth; vfxC.height=innerHeight; }
+resizeVfx();
+window.addEventListener('resize', resizeVfx);
+
+// Ship state
+const ship = {
+  x: -150, y: 0, vy: 0,
+  active: false,
+  trail: [],
+  lasers: [],
+  exhaustParticles: [],
+  nextLaser: 0,
+};
+
+// Start a ship pass
+function launchShip(){
+  ship.x      = -150;
+  ship.y      = 60 + Math.random() * (innerHeight * 0.55);
+  ship.vy     = (Math.random()-0.5)*0.4;
+  ship.active = true;
+  ship.speed  = 4.5 + Math.random()*3;
+  ship.trail  = [];
+  ship.lasers = [];
+  ship.exhaustParticles = [];
+  ship.nextLaser = 0;
+}
+
+// Schedule repeating ship passes
+launchShip();
+setInterval(()=>{ if(!ship.active) launchShip(); }, 500);
+
+const SHIP_W = 90, SHIP_H = 30;
+
+function drawShipSVG(ctx, x, y){
+  // Main hull
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Engine glow (back)
+  const eg = ctx.createRadialGradient(-SHIP_W*0.55, 0, 0, -SHIP_W*0.55, 0, 28);
+  eg.addColorStop(0,'rgba(0,200,255,0.9)');
+  eg.addColorStop(0.4,'rgba(0,120,255,0.5)');
+  eg.addColorStop(1,'transparent');
+  ctx.fillStyle=eg; ctx.beginPath(); ctx.arc(-SHIP_W*0.55, 0, 28, 0, Math.PI*2); ctx.fill();
+
+  // Wing shadow
+  ctx.fillStyle='rgba(0,0,0,0.4)';
+  ctx.beginPath();
+  ctx.moveTo(-SHIP_W*0.4, 6); ctx.lineTo(SHIP_W*0.3, 18); ctx.lineTo(SHIP_W*0.45, 24);
+  ctx.lineTo(-SHIP_W*0.1, 10); ctx.closePath(); ctx.fill();
+
+  // Lower wing
+  const wg2 = ctx.createLinearGradient(0, 0, 0, 24);
+  wg2.addColorStop(0,'#1a3a6a'); wg2.addColorStop(1,'#0a1a3a');
+  ctx.fillStyle=wg2;
+  ctx.beginPath();
+  ctx.moveTo(-SHIP_W*0.4, 4); ctx.lineTo(SHIP_W*0.3, 16); ctx.lineTo(SHIP_W*0.45, 22);
+  ctx.lineTo(-SHIP_W*0.1, 8); ctx.closePath(); ctx.fill();
+
+  // Upper wing
+  const wg1 = ctx.createLinearGradient(0, 0, 0, -22);
+  wg1.addColorStop(0,'#2a4a8a'); wg1.addColorStop(1,'#0e2050');
+  ctx.fillStyle=wg1;
+  ctx.beginPath();
+  ctx.moveTo(-SHIP_W*0.4, -4); ctx.lineTo(SHIP_W*0.3, -16); ctx.lineTo(SHIP_W*0.45, -22);
+  ctx.lineTo(-SHIP_W*0.1, -8); ctx.closePath(); ctx.fill();
+
+  // Wing edge highlight
+  ctx.strokeStyle='rgba(0,229,255,0.6)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(-SHIP_W*0.4,-4); ctx.lineTo(SHIP_W*0.3,-16); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-SHIP_W*0.4, 4); ctx.lineTo(SHIP_W*0.3, 16); ctx.stroke();
+
+  // Main fuselage
+  const hg = ctx.createLinearGradient(0,-12,0,12);
+  hg.addColorStop(0,'#4a7acc'); hg.addColorStop(0.4,'#2a4a9a'); hg.addColorStop(1,'#0a1a4a');
+  ctx.fillStyle=hg;
+  ctx.beginPath();
+  ctx.moveTo(-SHIP_W*0.5, -10); ctx.lineTo(SHIP_W*0.5, -5);
+  ctx.lineTo(SHIP_W*0.5, 5);   ctx.lineTo(-SHIP_W*0.5, 10); ctx.closePath();
+  ctx.fill();
+
+  // Fuselage top highlight streak
+  const streak = ctx.createLinearGradient(-SHIP_W*0.5,0, SHIP_W*0.5,0);
+  streak.addColorStop(0,'transparent'); streak.addColorStop(0.4,'rgba(100,180,255,0.35)');
+  streak.addColorStop(1,'transparent');
+  ctx.fillStyle=streak;
+  ctx.fillRect(-SHIP_W*0.5, -10, SHIP_W, 5);
+
+  // Cockpit dome
+  const cg = ctx.createRadialGradient(SHIP_W*0.28,-6,0, SHIP_W*0.28,-4,14);
+  cg.addColorStop(0,'rgba(120,220,255,0.9)'); cg.addColorStop(0.5,'rgba(40,120,200,0.7)');
+  cg.addColorStop(1,'rgba(10,40,100,0.8)');
+  ctx.fillStyle=cg;
+  ctx.beginPath(); ctx.ellipse(SHIP_W*0.28,-4,16,9,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='rgba(0,229,255,0.5)'; ctx.lineWidth=0.8;
+  ctx.beginPath(); ctx.ellipse(SHIP_W*0.28,-4,16,9,0,0,Math.PI*2); ctx.stroke();
+
+  // Cockpit glare
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  ctx.beginPath(); ctx.ellipse(SHIP_W*0.32,-7,6,3,-0.4,0,Math.PI*2); ctx.fill();
+
+  // Fuselage border
+  ctx.strokeStyle='rgba(0,180,255,0.5)'; ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(-SHIP_W*0.5,-10); ctx.lineTo(SHIP_W*0.5,-5);
+  ctx.lineTo(SHIP_W*0.5, 5);   ctx.lineTo(-SHIP_W*0.5,10); ctx.closePath();
+  ctx.stroke();
+
+  // Nose tip glow
+  const ng = ctx.createRadialGradient(SHIP_W*0.52,0,0, SHIP_W*0.52,0,12);
+  ng.addColorStop(0,'rgba(0,229,255,0.8)'); ng.addColorStop(1,'transparent');
+  ctx.fillStyle=ng; ctx.beginPath(); ctx.arc(SHIP_W*0.52,0,12,0,Math.PI*2); ctx.fill();
+
+  // Dual engine nozzles
+  [[-7,0],[7,0]].forEach(([oy])=>{
+    const eng = ctx.createRadialGradient(-SHIP_W*0.5, oy, 0, -SHIP_W*0.5, oy, 10);
+    eng.addColorStop(0,'rgba(100,220,255,1)'); eng.addColorStop(0.5,'rgba(0,100,255,0.6)');
+    eng.addColorStop(1,'transparent');
+    ctx.fillStyle=eng; ctx.beginPath(); ctx.arc(-SHIP_W*0.5, oy, 10, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle='rgba(0,0,30,0.9)';
+    ctx.beginPath(); ctx.arc(-SHIP_W*0.5, oy, 6, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle='rgba(150,240,255,0.9)';
+    ctx.beginPath(); ctx.arc(-SHIP_W*0.5, oy, 3, 0, Math.PI*2); ctx.fill();
+  });
+
+  ctx.restore();
+}
+
+function updateVfx(){
+  vfxX.clearRect(0,0,vfxC.width,vfxC.height);
+
+  if(ship.active){
+    ship.x  += ship.speed;
+    ship.y  += ship.vy;
+    ship.vy += (Math.random()-0.5)*0.12;
+    ship.vy *= 0.96;
+
+    // Engine trail
+    ship.trail.push({ x:ship.x - SHIP_W*0.5, y:ship.y, age:0, r:8+Math.random()*4 });
+    if(ship.trail.length>60) ship.trail.shift();
+
+    // Exhaust particles
+    if(Math.random()<0.8){
+      ship.exhaustParticles.push({
+        x:ship.x-SHIP_W*0.5, y:ship.y+(Math.random()-0.5)*14,
+        vx:-(1.5+Math.random()*3), vy:(Math.random()-0.5)*1.5,
+        life:1, r:2+Math.random()*4,
+        color:Math.random()<0.5?'rgba(0,200,255,':'rgba(100,160,255,'
       });
+    }
+
+    // Draw trail
+    ship.trail.forEach((p,i)=>{
+      const a = (i/ship.trail.length)*0.35;
+      vfxX.beginPath();
+      const g=vfxX.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);
+      g.addColorStop(0,`rgba(0,180,255,${a})`); g.addColorStop(1,'transparent');
+      vfxX.fillStyle=g; vfxX.arc(p.x,p.y,p.r,0,Math.PI*2); vfxX.fill();
+    });
+
+    // Draw exhaust particles
+    ship.exhaustParticles.forEach((p,i)=>{
+      p.x+=p.vx; p.y+=p.vy; p.life-=0.06;
+      if(p.life<=0){ ship.exhaustParticles.splice(i,1); return; }
+      vfxX.globalAlpha=p.life;
+      vfxX.fillStyle=p.color+p.life+')';
+      vfxX.beginPath(); vfxX.arc(p.x,p.y,p.r*p.life,0,Math.PI*2); vfxX.fill();
+    });
+    vfxX.globalAlpha=1;
+
+    // Spawn laser bolts
+    ship.nextLaser--;
+    if(ship.nextLaser<=0){
+      ship.nextLaser = 8+~~(Math.random()*12);
+      ship.lasers.push({
+        x:ship.x+SHIP_W*0.5, y:ship.y, vx:12+Math.random()*8, life:1,
+        color:Math.random()<0.7?'#00e5ff':Math.random()<0.5?'#ff1744':'#ffd740'
+      });
+    }
+
+    // Draw lasers
+    ship.lasers.forEach((l,i)=>{
+      l.x += l.vx; l.life -= 0.04;
+      if(l.x>vfxC.width+80 || l.life<=0){ ship.lasers.splice(i,1); return; }
+      vfxX.globalAlpha=l.life;
+      // Bolt
+      const lg=vfxX.createLinearGradient(l.x-60,l.y, l.x+10,l.y);
+      lg.addColorStop(0,'transparent'); lg.addColorStop(0.4,l.color); lg.addColorStop(1,'#fff');
+      vfxX.strokeStyle=lg; vfxX.lineWidth=3; vfxX.shadowBlur=12; vfxX.shadowColor=l.color;
+      vfxX.beginPath(); vfxX.moveTo(l.x-60,l.y); vfxX.lineTo(l.x+10,l.y); vfxX.stroke();
+      // Core white
+      vfxX.strokeStyle='rgba(255,255,255,0.9)'; vfxX.lineWidth=1.2; vfxX.shadowBlur=0;
+      vfxX.beginPath(); vfxX.moveTo(l.x-20,l.y); vfxX.lineTo(l.x+10,l.y); vfxX.stroke();
+    });
+    vfxX.globalAlpha=1; vfxX.shadowBlur=0;
+
+    // Draw ship
+    drawShipSVG(vfxX, ship.x, ship.y);
+
+    // Done?
+    if(ship.x > vfxC.width + 180){
+      ship.active=false;
+      setTimeout(launchShip, 1800+Math.random()*3000);
     }
   }
 
-  function drawStars() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // Nebula blobs
-    const grad1 = ctx.createRadialGradient(canvas.width * 0.2, canvas.height * 0.3, 0, canvas.width * 0.2, canvas.height * 0.3, 300);
-    grad1.addColorStop(0, 'rgba(80,0,180,0.06)');
-    grad1.addColorStop(1, 'transparent');
-    ctx.fillStyle = grad1; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const grad2 = ctx.createRadialGradient(canvas.width * 0.8, canvas.height * 0.7, 0, canvas.width * 0.8, canvas.height * 0.7, 250);
-    grad2.addColorStop(0, 'rgba(0,100,180,0.07)');
-    grad2.addColorStop(1, 'transparent');
-    ctx.fillStyle = grad2; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    stars.forEach(s => {
-      s.twinkle += s.twinkleSpeed;
-      const alpha = 0.4 + 0.6 * Math.abs(Math.sin(s.twinkle));
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = s.color;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-      ctx.fill();
-      s.y += s.speed;
-      if (s.y > canvas.height) { s.y = 0; s.x = Math.random() * canvas.width; }
-    });
-    ctx.globalAlpha = 1;
-    requestAnimationFrame(drawStars);
-  }
-
-  resizeCanvas(); initStars(); drawStars();
-  window.addEventListener('resize', () => { resizeCanvas(); initStars(); });
-
-  // ─── High score ───
-  const hs = localStorage.getItem('gmh_highscore') || 0;
-  document.getElementById('highScore').textContent = String(hs).padStart(6, '0');
-
-  // ─── Character preview cards ───
-  const PREVIEW_CHARS = [
-    { name: 'Stormtrooper', pts: '1 PT', color: '#e8e8e8', svg: stormtrooperSVG() },
-    { name: 'Clone', pts: '1 PT', color: '#aaddff', svg: cloneSVG() },
-    { name: 'Xenomorph', pts: '2 PT', color: '#88ff88', svg: xenomorphSVG() },
-    { name: 'R2-D2', pts: '2 PT', color: '#4488ff', svg: r2d2SVG() },
-    { name: 'Yoda', pts: '3 PT', color: '#88dd44', svg: yodaSVG() },
-    { name: 'Boba Fett', pts: '3 PT', color: '#88bb66', svg: bobaFettSVG() },
-    { name: 'Predator', pts: '4 PT', color: '#ddaa44', svg: predatorSVG() },
-    { name: 'Darth Vader', pts: '5 PT', color: '#ff4444', svg: vaderSVG() },
-  ];
-
-  const strip = document.getElementById('charStrip');
-  PREVIEW_CHARS.forEach(c => {
-    const card = document.createElement('div');
-    card.className = 'char-card';
-    card.innerHTML = `${c.svg}<span class="char-name">${c.name}</span><span class="char-pts">${c.pts}</span>`;
-    strip.appendChild(card);
-  });
-
-  // ─── SVG Definitions ───
-  function stormtrooperSVG() {
-    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="50" cy="48" rx="37" ry="40" fill="#eee" stroke="#ccc" stroke-width="1.5"/>
-      <ellipse cx="50" cy="32" rx="28" ry="18" fill="#fff" opacity="0.4"/>
-      <rect x="16" y="40" width="68" height="9" rx="3" fill="#e0e0e0" stroke="#bbb" stroke-width="0.5"/>
-      <rect x="17" y="46" width="66" height="11" rx="2" fill="#111"/>
-      <rect x="39" y="46" width="22" height="22" rx="2" fill="#111"/>
-      <path d="M22 68 Q50 82 78 68 L76 82 Q50 92 24 82 Z" fill="#e4e4e4"/>
-      <rect x="30" y="70" width="16" height="8" rx="1.5" fill="#ccc"/>
-      <rect x="54" y="70" width="16" height="8" rx="1.5" fill="#ccc"/>
-      <rect x="38" y="90" width="24" height="10" rx="2" fill="#ddd"/>
-      <rect x="18" y="98" width="64" height="30" rx="4" fill="#eee" stroke="#ccc"/>
-      <rect x="26" y="106" width="18" height="10" rx="2" fill="#ddd"/>
-      <rect x="56" y="106" width="18" height="10" rx="2" fill="#ddd"/>
-    </svg>`;
-  }
-
-  function cloneSVG() {
-    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="50" cy="48" rx="37" ry="40" fill="#eee" stroke="#ccc" stroke-width="1.5"/>
-      <ellipse cx="50" cy="32" rx="28" ry="18" fill="#fff" opacity="0.4"/>
-      <rect x="16" y="40" width="68" height="9" rx="3" fill="#aaddff" stroke="#88bbdd" stroke-width="0.5"/>
-      <rect x="17" y="46" width="66" height="11" rx="2" fill="#111"/>
-      <rect x="39" y="46" width="22" height="22" rx="2" fill="#1a2a44"/>
-      <path d="M22 68 Q50 82 78 68 L76 82 Q50 92 24 82 Z" fill="#e0e8ff"/>
-      <rect x="30" y="70" width="16" height="8" rx="1.5" fill="#aaddff"/>
-      <rect x="54" y="70" width="16" height="8" rx="1.5" fill="#aaddff"/>
-      <rect x="38" y="90" width="24" height="10" rx="2" fill="#cce4ff"/>
-      <rect x="18" y="98" width="64" height="30" rx="4" fill="#eef2ff" stroke="#aac"/>
-      <rect x="26" y="106" width="18" height="10" rx="2" fill="#bbddff"/>
-      <rect x="56" y="106" width="18" height="10" rx="2" fill="#bbddff"/>
-    </svg>`;
-  }
-
-  function xenomorphSVG() {
-    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="50" cy="30" rx="22" ry="10" fill="#1a2a1a" stroke="#2a4a2a"/>
-      <path d="M28 28 Q50 5 72 28 Q80 50 78 70 Q65 88 50 90 Q35 88 22 70 Q20 50 28 28 Z" fill="#0d1a0d" stroke="#1a3a1a" stroke-width="1.5"/>
-      <path d="M30 25 Q50 8 70 25" fill="none" stroke="#2a5a2a" stroke-width="2"/>
-      <path d="M50 8 L50 2 M44 10 L40 5 M56 10 L60 5" stroke="#1a3a1a" stroke-width="1.5"/>
-      <ellipse cx="37" cy="50" rx="8" ry="6" fill="#0a1a0a"/>
-      <ellipse cx="37" cy="50" rx="5" ry="4" fill="#1a4a1a"/>
-      <ellipse cx="63" cy="50" rx="8" ry="6" fill="#0a1a0a"/>
-      <ellipse cx="63" cy="50" rx="5" ry="4" fill="#1a4a1a"/>
-      <ellipse cx="37" cy="50" rx="2.5" ry="2" fill="#88ff88" opacity="0.6"/>
-      <ellipse cx="63" cy="50" rx="2.5" ry="2" fill="#88ff88" opacity="0.6"/>
-      <path d="M34 70 Q50 80 66 70" fill="none" stroke="#2a5a2a" stroke-width="1.5"/>
-      <line x1="36" y1="73" x2="36" y2="80" stroke="#2a5a2a" stroke-width="1"/>
-      <line x1="42" y1="76" x2="42" y2="83" stroke="#2a5a2a" stroke-width="1"/>
-      <line x1="50" y1="77" x2="50" y2="85" stroke="#2a5a2a" stroke-width="1.5"/>
-      <line x1="58" y1="76" x2="58" y2="83" stroke="#2a5a2a" stroke-width="1"/>
-      <line x1="64" y1="73" x2="64" y2="80" stroke="#2a5a2a" stroke-width="1"/>
-      <rect x="24" y="88" width="52" height="40" rx="5" fill="#0d1a0d" stroke="#1a3a1a"/>
-      <path d="M30 96 Q50 92 70 96 L70 124 Q50 128 30 124 Z" fill="#0a150a"/>
-      <line x1="35" y1="102" x2="65" y2="102" stroke="#1a4a1a" stroke-width="1"/>
-      <line x1="33" y1="110" x2="67" y2="110" stroke="#1a4a1a" stroke-width="1"/>
-      <line x1="35" y1="118" x2="65" y2="118" stroke="#1a4a1a" stroke-width="1"/>
-    </svg>`;
-  }
-
-  function r2d2SVG() {
-    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="50" cy="42" rx="34" ry="36" fill="#e8f0ff" stroke="#aac" stroke-width="1.5"/>
-      <ellipse cx="50" cy="28" rx="25" ry="15" fill="#fff" opacity="0.5"/>
-      <rect x="16" y="36" width="68" height="8" rx="2" fill="#4488ff" stroke="#2266cc"/>
-      <circle cx="50" cy="52" r="12" fill="#1a1a2a" stroke="#4488ff" stroke-width="2"/>
-      <circle cx="50" cy="52" r="8" fill="#2244aa"/>
-      <circle cx="50" cy="52" r="4" fill="#88aaff"/>
-      <circle cx="50" cy="52" r="1.5" fill="#fff"/>
-      <rect x="20" y="64" width="16" height="10" rx="2" fill="#4488ff" opacity="0.8"/>
-      <rect x="64" y="64" width="16" height="10" rx="2" fill="#4488ff" opacity="0.8"/>
-      <rect x="38" y="62" width="24" height="14" rx="2" fill="#c8d8ff"/>
-      <rect x="16" y="78" width="68" height="48" rx="5" fill="#dde8ff" stroke="#aac" stroke-width="1"/>
-      <rect x="22" y="84" width="28" height="18" rx="3" fill="#4488ff" opacity="0.7"/>
-      <rect x="54" y="84" width="22" height="18" rx="3" fill="#c8d8ff"/>
-      <circle cx="58" cy="93" r="3" fill="#ff4444"/>
-      <circle cx="66" cy="93" r="3" fill="#44ff44"/>
-      <circle cx="70" cy="101" r="2" fill="#ffff44"/>
-      <rect x="22" y="108" width="56" height="12" rx="2" fill="#c8d8ff"/>
-      <line x1="28" y1="114" x2="72" y2="114" stroke="#4488ff" stroke-width="1.5"/>
-    </svg>`;
-  }
-
-  function yodaSVG() {
-    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-      <path d="M15 55 Q10 45 12 35 Q15 22 30 25 L35 48 Z" fill="#5a8a3a" stroke="#3a6a1a"/>
-      <path d="M85 55 Q90 45 88 35 Q85 22 70 25 L65 48 Z" fill="#5a8a3a" stroke="#3a6a1a"/>
-      <ellipse cx="50" cy="52" rx="36" ry="38" fill="#6aaa4a" stroke="#4a8a2a" stroke-width="1.5"/>
-      <ellipse cx="50" cy="38" rx="26" ry="18" fill="#7abb5a" opacity="0.5"/>
-      <ellipse cx="35" cy="50" rx="10" ry="8" fill="#2a1a0a" stroke="#1a0a00"/>
-      <ellipse cx="65" cy="50" rx="10" ry="8" fill="#2a1a0a" stroke="#1a0a00"/>
-      <ellipse cx="35" cy="50" rx="7" ry="5.5" fill="#4a3a1a"/>
-      <ellipse cx="65" cy="50" rx="7" ry="5.5" fill="#4a3a1a"/>
-      <ellipse cx="34" cy="49" rx="3" ry="3" fill="#aacc88" opacity="0.9"/>
-      <ellipse cx="64" cy="49" rx="3" ry="3" fill="#aacc88" opacity="0.9"/>
-      <ellipse cx="33" cy="48" rx="1.5" ry="1.5" fill="#fff" opacity="0.6"/>
-      <ellipse cx="63" cy="48" rx="1.5" ry="1.5" fill="#fff" opacity="0.6"/>
-      <path d="M38 66 Q50 72 62 66" fill="none" stroke="#4a8a2a" stroke-width="2"/>
-      <path d="M42 60 Q50 58 58 60" fill="none" stroke="#5a6a4a" stroke-width="1"/>
-      <path d="M35 56 Q30 58 28 62 M65 56 Q70 58 72 62" fill="none" stroke="#4a6a2a" stroke-width="1"/>
-      <rect x="26" y="88" width="48" height="40" rx="4" fill="#4a3a2a" stroke="#3a2a1a"/>
-      <rect x="30" y="92" width="40" height="32" rx="3" fill="#5a4a3a"/>
-      <line x1="30" y1="100" x2="70" y2="100" stroke="#3a2a1a" stroke-width="1"/>
-      <line x1="30" y1="108" x2="70" y2="108" stroke="#3a2a1a" stroke-width="1"/>
-      <line x1="30" y1="116" x2="70" y2="116" stroke="#3a2a1a" stroke-width="1"/>
-    </svg>`;
-  }
-
-  function bobaFettSVG() {
-    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="50" cy="48" rx="37" ry="40" fill="#5a7a5a" stroke="#3a5a3a" stroke-width="1.5"/>
-      <ellipse cx="50" cy="30" rx="28" ry="18" fill="#6a8a6a" opacity="0.5"/>
-      <path d="M13 46 L87 46 L80 62 Q65 72 50 72 Q35 72 20 62 Z" fill="#4a6a4a"/>
-      <rect x="17" y="42" width="66" height="12" rx="2" fill="#111"/>
-      <rect x="38" y="42" width="24" height="8" rx="1" fill="#222"/>
-      <ellipse cx="50" cy="40" rx="8" ry="3" fill="#3a5a3a"/>
-      <rect x="30" y="58" width="14" height="8" rx="1.5" fill="#8aaa8a" opacity="0.8"/>
-      <rect x="56" y="58" width="14" height="8" rx="1.5" fill="#8aaa8a" opacity="0.8"/>
-      <path d="M35 66 Q50 74 65 66 L63 78 Q50 84 37 78 Z" fill="#5a7a5a"/>
-      <rect x="38" y="88" width="24" height="10" rx="2" fill="#4a6a4a"/>
-      <rect x="18" y="96" width="64" height="32" rx="4" fill="#5a7a5a" stroke="#3a5a3a"/>
-      <rect x="24" y="103" width="22" height="14" rx="2" fill="#4a6a4a"/>
-      <rect x="54" y="103" width="22" height="14" rx="2" fill="#4a6a4a"/>
-      <circle cx="50" cy="110" r="4" fill="#cc4422" stroke="#aa2200"/>
-    </svg>`;
-  }
-
-  function predatorSVG() {
-    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-      <path d="M28 18 Q22 8 18 5 L24 22" stroke="#aa7722" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <path d="M36 14 Q32 4 30 2 L35 18" stroke="#aa7722" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-      <path d="M44 12 Q42 2 42 0 L46 14" stroke="#aa7722" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-      <path d="M56 12 Q58 2 58 0 L54 14" stroke="#aa7722" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-      <path d="M64 14 Q68 4 70 2 L65 18" stroke="#aa7722" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-      <path d="M72 18 Q78 8 82 5 L76 22" stroke="#aa7722" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <ellipse cx="50" cy="55" rx="35" ry="38" fill="#bb8844" stroke="#8a5a22" stroke-width="1.5"/>
-      <ellipse cx="50" cy="40" rx="26" ry="18" fill="#cc9944" opacity="0.5"/>
-      <ellipse cx="35" cy="50" rx="9" ry="8" fill="#1a1a0a" stroke="#2a2a0a"/>
-      <ellipse cx="65" cy="50" rx="9" ry="8" fill="#1a1a0a" stroke="#2a2a0a"/>
-      <ellipse cx="35" cy="50" rx="5" ry="5" fill="#3a2a0a"/>
-      <ellipse cx="65" cy="50" rx="5" ry="5" fill="#3a2a0a"/>
-      <circle cx="34" cy="49" r="2" fill="#ffcc22" opacity="0.8"/>
-      <circle cx="64" cy="49" r="2" fill="#ffcc22" opacity="0.8"/>
-      <path d="M36 68 L44 72 L50 70 L56 72 L64 68" fill="none" stroke="#8a5a22" stroke-width="1.5"/>
-      <path d="M40 72 L38 80 M44 72 L43 80 M50 70 L50 78 M56 72 L57 80 M60 72 L62 80" stroke="#8a5a22" stroke-width="1.5"/>
-      <rect x="25" y="90" width="50" height="38" rx="4" fill="#aa7733" stroke="#8a5a22"/>
-      <rect x="30" y="96" width="40" height="26" rx="3" fill="#bb8844"/>
-      <circle cx="38" cy="107" r="4" fill="#cc2200"/>
-      <circle cx="50" cy="107" r="4" fill="#2222cc"/>
-      <circle cx="62" cy="107" r="4" fill="#cc2200"/>
-      <line x1="30" y1="116" x2="70" y2="116" stroke="#8a5a22" stroke-width="1"/>
-    </svg>`;
-  }
-
-  function vaderSVG() {
-    return `<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="50" cy="46" rx="37" ry="40" fill="#111" stroke="#2a2a2a" stroke-width="1.5"/>
-      <path d="M13 46 Q50 8 87 46" fill="#1a1a1a" stroke="#2a2a2a" stroke-width="1.5"/>
-      <path d="M24 52 L38 32 L50 26 L62 32 L76 52 L74 74 Q62 86 50 88 Q38 86 26 74 Z" fill="#0a0a0a"/>
-      <path d="M36 58 L50 50 L64 58 L64 70 Q50 78 36 70 Z" fill="#080808" stroke="#222" stroke-width="0.5"/>
-      <line x1="38" y1="63" x2="62" y2="63" stroke="#2a2a2a" stroke-width="1.5"/>
-      <line x1="36" y1="68" x2="64" y2="68" stroke="#2a2a2a" stroke-width="1.5"/>
-      <line x1="38" y1="73" x2="62" y2="73" stroke="#2a2a2a" stroke-width="1.5"/>
-      <ellipse cx="35" cy="48" rx="9" ry="6" fill="#1a0000"/>
-      <ellipse cx="35" cy="48" rx="6" ry="4" fill="#cc0000"/>
-      <ellipse cx="35" cy="47" rx="3.5" ry="2.5" fill="#ff2222"/>
-      <ellipse cx="65" cy="48" rx="9" ry="6" fill="#1a0000"/>
-      <ellipse cx="65" cy="48" rx="6" ry="4" fill="#cc0000"/>
-      <ellipse cx="65" cy="47" rx="3.5" ry="2.5" fill="#ff2222"/>
-      <ellipse cx="35" cy="48" rx="10" ry="7" fill="#ff0000" opacity="0.12"/>
-      <ellipse cx="65" cy="48" rx="10" ry="7" fill="#ff0000" opacity="0.12"/>
-      <rect x="9" y="46" width="12" height="22" rx="2" fill="#111" stroke="#2a2a2a"/>
-      <rect x="79" y="46" width="12" height="22" rx="2" fill="#111" stroke="#2a2a2a"/>
-      <rect x="30" y="86" width="40" height="12" rx="3" fill="#111" stroke="#222"/>
-      <rect x="14" y="96" width="72" height="32" rx="4" fill="#0d0d0d" stroke="#2a2a2a" stroke-width="1.5"/>
-      <rect x="20" y="102" width="26" height="20" rx="2" fill="#1a1a1a"/>
-      <circle cx="27" cy="108" r="2.5" fill="#ff0000"/>
-      <circle cx="34" cy="108" r="2.5" fill="#00ff00"/>
-      <circle cx="27" cy="115" r="2.5" fill="#0000ff"/>
-      <circle cx="34" cy="115" r="2.5" fill="#ffff00"/>
-      <rect x="50" y="102" width="32" height="20" rx="2" fill="#1a1a1a"/>
-      <rect x="53" y="105" width="26" height="4" rx="1" fill="#333"/>
-      <rect x="53" y="111" width="26" height="4" rx="1" fill="#333"/>
-      <rect x="53" y="117" width="26" height="4" rx="1" fill="#333"/>
-    </svg>`;
-  }
+  requestAnimationFrame(updateVfx);
+}
+updateVfx();
 </script>
 </body>
 </html>
