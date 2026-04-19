@@ -75,33 +75,28 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);
 .stat-label{font-size:0.52rem;letter-spacing:3px;color:var(--cyan);opacity:0.6;text-transform:uppercase}
 .stat-value{font-family:'Orbitron',sans-serif;font-size:1rem;color:var(--gold);text-shadow:0 0 10px var(--gold)}
 
-/* ── SHOWCASE ── */
-.showcase-label{font-size:0.55rem;letter-spacing:5px;color:var(--cyan);opacity:0.5;text-transform:uppercase}
+/* ── CAROUSEL ── */
+.carousel-outer{display:flex;align-items:center;gap:22px;justify-content:center}
 
-/* 4-column x 2-row grid */
-.char-stage{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
-  padding:12px 16px;
-  background:linear-gradient(135deg,rgba(0,20,50,0.55),rgba(0,10,30,0.7));
-  border:1px solid rgba(0,150,255,0.12);
-  border-radius:20px;
-  box-shadow:0 0 40px rgba(0,100,255,0.06),inset 0 0 60px rgba(0,0,0,0.4);
-  position:relative}
-/* floor grid lines */
-.char-stage::before{content:'';position:absolute;inset:0;border-radius:20px;
-  background:
-    repeating-linear-gradient(0deg,rgba(0,100,200,0.05) 0,rgba(0,100,200,0.05) 1px,transparent 1px,transparent 44px),
-    repeating-linear-gradient(90deg,rgba(0,100,200,0.05) 0,rgba(0,100,200,0.05) 1px,transparent 1px,transparent 44px);
-  pointer-events:none}
+/* Sliding track: viewport clips to 3 slots */
+.car-viewport{overflow:hidden;position:relative;flex-shrink:0}
+.car-track{display:flex;align-items:flex-end;will-change:transform}
 
-.char-slot{display:flex;flex-direction:column;align-items:center;gap:3px;position:relative}
+/* Each slot */
+.c-slot{
+  flex-shrink:0;width:160px;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding-bottom:6px;
+  opacity:0.35;
+  transform:scale(0.7);
+  transition:opacity 0.55s ease,transform 0.55s cubic-bezier(.4,0,.2,1);
+}
+.c-slot.active{opacity:1;transform:scale(1)}
 
-/* ── 3D HOLE ── */
-.char-hole{
-  position:relative;width:68px;height:68px;border-radius:50%;
-  /* Deep 3D pit using layered gradients */
-  background:
-    radial-gradient(ellipse at 42% 32%,rgba(10,20,60,0.5) 0%,#010208 45%,#000 100%);
-  /* Rim bevel: top-left bright, bottom-right dark */
+/* 3D hole */
+.c-hole{
+  position:relative;width:88px;height:88px;border-radius:50%;
+  background:radial-gradient(ellipse at 42% 32%,rgba(10,20,60,0.5) 0%,#010208 45%,#000 100%);
   box-shadow:
     inset 0 8px 20px rgba(0,0,0,1),
     inset 0 -6px 18px rgba(0,0,0,0.95),
@@ -112,45 +107,66 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);
   transition:box-shadow 0.4s ease;
   overflow:visible;
 }
-/* Metallic rim ring */
-.char-hole::before{content:'';position:absolute;inset:-4px;border-radius:50%;
-  background:conic-gradient(
-    from 135deg,
-    rgba(0,150,255,0.5) 0deg,
-    rgba(0,229,255,0.15) 90deg,
-    rgba(0,40,100,0.4) 180deg,
-    rgba(0,229,255,0.25) 270deg,
-    rgba(0,150,255,0.5) 360deg
-  );
+.c-hole::before{content:'';position:absolute;inset:-4px;border-radius:50%;
+  background:conic-gradient(from 135deg,
+    rgba(0,150,255,0.5) 0deg,rgba(0,229,255,0.15) 90deg,
+    rgba(0,40,100,0.4) 180deg,rgba(0,229,255,0.25) 270deg,
+    rgba(0,150,255,0.5) 360deg);
   z-index:-1;animation:rimSpin 6s linear infinite}
 @keyframes rimSpin{to{transform:rotate(360deg)}}
-/* Inner pit shadow */
-.char-hole::after{content:'';position:absolute;inset:6px;border-radius:50%;
+.c-hole::after{content:'';position:absolute;inset:6px;border-radius:50%;
   background:radial-gradient(ellipse at 45% 35%,rgba(0,30,80,0.2),rgba(0,0,0,0.98));
   pointer-events:none}
 
-/* Figure container */
-.char-fig{
+/* Figure inside hole */
+.c-fig{
   position:absolute;bottom:-110%;left:50%;
   transform:translateX(-50%) scale(0.82);
-  width:52px;height:64px;
+  width:60px;height:74px;
   transition:bottom 0.38s cubic-bezier(.175,.885,.32,1.275),
              transform 0.38s cubic-bezier(.175,.885,.32,1.275);
   filter:drop-shadow(0 6px 14px rgba(0,0,0,0.9));
   z-index:2;
 }
-.char-fig svg{width:100%;height:100%}
-.char-fig.up{bottom:8%;transform:translateX(-50%) scale(1)}
-.char-fig.is-boss svg{filter:drop-shadow(0 0 10px gold) drop-shadow(0 0 22px gold)}
+.c-fig svg{width:100%;height:100%}
+.c-fig.up{bottom:7%;transform:translateX(-50%) scale(1);animation:figBob 2.2s ease-in-out infinite}
+.c-fig.is-boss svg{filter:drop-shadow(0 0 10px gold) drop-shadow(0 0 22px gold)}
+@keyframes figBob{0%,100%{margin-top:0}50%{margin-top:-6px}}
 
-/* Float bob for risen chars */
-.char-fig.up{animation:figBob 2s ease-in-out infinite}
-@keyframes figBob{0%,100%{margin-top:0}50%{margin-top:-5px}}
+/* Ghost slot name */
+.c-ghost-name{font-size:0.52rem;letter-spacing:1px;color:var(--text);opacity:0.55;text-align:center}
 
-/* Name + pts */
-.char-info{display:flex;flex-direction:column;align-items:center;gap:1px}
-.char-name{font-size:0.5rem;letter-spacing:1px;color:var(--text);opacity:0.7;text-align:center}
-.char-pts{font-family:'Orbitron',sans-serif;font-size:0.58rem;color:var(--gold);text-shadow:0 0 6px var(--gold)}
+/* Right info panel */
+.car-info{
+  display:flex;flex-direction:column;gap:6px;width:140px;flex-shrink:0;
+  padding:14px 16px;
+  background:rgba(4,10,28,0.88);border:1px solid var(--border);border-radius:14px;
+}
+.car-info-header{font-size:0.5rem;letter-spacing:4px;color:var(--cyan);opacity:0.55;text-transform:uppercase}
+.car-name{
+  font-family:'Orbitron',sans-serif;font-size:1.05rem;font-weight:700;
+  color:#fff;text-shadow:0 0 10px var(--cyan);
+  transition:opacity 0.3s,transform 0.3s;line-height:1.2;
+}
+.car-pts{
+  font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:900;
+  color:var(--gold);text-shadow:0 0 14px var(--gold);
+  transition:opacity 0.3s,transform 0.3s;
+}
+.car-name.swap,.car-pts.swap{opacity:0;transform:translateY(-8px)}
+.car-prog{
+  display:flex;flex-direction:column;gap:4px;margin-top:2px;
+}
+.car-dot-row{display:flex;gap:4px;flex-wrap:wrap}
+.car-dot{
+  width:10px;height:10px;border-radius:50%;
+  background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.25);
+  transition:background 0.4s,box-shadow 0.4s;
+}
+.car-dot.lit{
+  background:var(--cyan);
+  box-shadow:0 0 6px var(--cyan),0 0 12px var(--cyan);
+}
 
 /* ── LAUNCH BTN ── */
 .launch-btn{
@@ -234,9 +250,26 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);
     </div>
   </div>
 
-  <div class="showcase-label">— Enemy Roster —</div>
+  <!-- Carousel + info panel -->
+  <div class="carousel-outer">
+    <!-- Sliding hole carousel -->
+    <div class="car-viewport" id="carViewport">
+      <div class="car-track" id="carTrack">
+        <!-- 5 slots built by JS; 3 visible at once -->
+      </div>
+    </div>
 
-  <div class="char-stage" id="charStage"></div>
+    <!-- Right info panel -->
+    <div class="car-info">
+      <div class="car-info-header">— Now Showing —</div>
+      <div class="car-name" id="carName">Loading…</div>
+      <div class="car-pts"  id="carPts"></div>
+      <div class="car-prog">
+        <div class="car-info-header" style="margin-top:4px">Roster</div>
+        <div class="car-dot-row" id="carDots"></div>
+      </div>
+    </div>
+  </div>
 
   <button class="launch-btn" onclick="window.location.href='game.html'">▶ LAUNCH MISSION</button>
 </div>
@@ -484,37 +517,161 @@ const ENEMIES = [
 ];
 
 // ════════════════════════════════════════════════════════════════
-//  BUILD CHARACTER SLOTS
+//  CAROUSEL SETUP
 // ════════════════════════════════════════════════════════════════
-const charStage = document.getElementById('charStage');
-const slots = [];
-
-ENEMIES.forEach((e, i) => {
-  const slot = document.createElement('div');
-  slot.className = 'char-slot';
-
-  const hole = document.createElement('div');
-  hole.className = 'char-hole';
-  hole.style.setProperty('--glow-color', e.color);
-
-  const fig = document.createElement('div');
-  fig.className = 'char-fig' + (e.boss ? ' is-boss' : '');
-  fig.innerHTML = SVGS[e.id];
-  hole.appendChild(fig);
-
-  const info = document.createElement('div');
-  info.className = 'char-info';
-  info.innerHTML = `<span class="char-name">${e.name}</span><span class="char-pts">${e.pts}</span>`;
-
-  slot.appendChild(hole);
-  slot.appendChild(info);
-  charStage.appendChild(slot);
-
-  slots.push({ hole, fig, enemy: e, up: false });
-});
-
 document.getElementById('highScore').textContent =
   String(parseInt(localStorage.getItem('gmh_highscore') || '0')).padStart(6, '0');
+
+const N = ENEMIES.length;
+const SLOT_W = 160;  // px per slot in the track
+
+const carTrack    = document.getElementById('carTrack');
+const carViewport = document.getElementById('carViewport');
+const carNameEl   = document.getElementById('carName');
+const carPtsEl    = document.getElementById('carPts');
+const carDotsEl   = document.getElementById('carDots');
+
+// Viewport shows 3 slots
+carViewport.style.width = `${SLOT_W * 3}px`;
+
+// Build 5 DOM slots (3 visible + 1 off each side for staging)
+const cSlots = [];
+for(let i = 0; i < 5; i++) {
+  const slot = document.createElement('div');
+  slot.className = 'c-slot';
+  slot.style.width = SLOT_W + 'px';
+
+  const hole = document.createElement('div');
+  hole.className = 'c-hole';
+
+  const fig = document.createElement('div');
+  fig.className = 'c-fig';
+  hole.appendChild(fig);
+
+  const ghostName = document.createElement('div');
+  ghostName.className = 'c-ghost-name';
+
+  slot.appendChild(hole);
+  slot.appendChild(ghostName);
+  carTrack.appendChild(slot);
+  cSlots.push({ slot, hole, fig, ghostName, eidx: 0 });
+}
+
+// Build indicator dots
+for(let i = 0; i < N; i++) {
+  const d = document.createElement('div');
+  d.className = 'car-dot';
+  carDotsEl.appendChild(d);
+}
+const dots = [...carDotsEl.querySelectorAll('.car-dot')];
+
+// Initial track offset: slide left by one slot so slot[1] is leftmost visible
+let trackOffset = -SLOT_W;
+carTrack.style.transform = `translateX(${trackOffset}px)`;
+carTrack.style.transition = 'none';
+
+// queueHead = enemy index shown in the CENTER slot (index 2 in cSlots)
+let queueHead = 0;
+let carAnimating = false;
+
+function wrapIdx(n) { return ((n % N) + N) % N; }
+
+function fillSlot(s, rawIdx) {
+  const e = ENEMIES[wrapIdx(rawIdx)];
+  s.eidx = wrapIdx(rawIdx);
+  s.hole.style.setProperty('--glow-color', e.color);
+  s.fig.innerHTML = SVGS[e.id];
+  s.fig.className = 'c-fig' + (e.boss ? ' is-boss' : '');
+  s.ghostName.textContent = e.name;
+}
+
+function updateInfo(animate) {
+  const e = ENEMIES[cSlots[2].eidx];
+  if(animate) {
+    carNameEl.classList.add('swap');
+    carPtsEl.classList.add('swap');
+    setTimeout(() => {
+      carNameEl.textContent = e.name;
+      carPtsEl.textContent  = e.pts;
+      carNameEl.classList.remove('swap');
+      carPtsEl.classList.remove('swap');
+    }, 200);
+  } else {
+    carNameEl.textContent = e.name;
+    carPtsEl.textContent  = e.pts;
+  }
+  // Dots
+  dots.forEach((d, i) => d.classList.toggle('lit', i === cSlots[2].eidx));
+}
+
+function activateCenter() {
+  const s = cSlots[2];
+  volcanoErupt(s.hole, ENEMIES[s.eidx]);
+  s.fig.classList.add('up');
+  // Auto retract before next rotation
+  setTimeout(() => s.fig.classList.remove('up'), 2000);
+}
+
+// Fill all 5 slots: [-2, -1, 0(center), +1, +2] relative to queueHead
+fillSlot(cSlots[0], queueHead - 2);
+fillSlot(cSlots[1], queueHead - 1);
+fillSlot(cSlots[2], queueHead);
+fillSlot(cSlots[3], queueHead + 1);
+fillSlot(cSlots[4], queueHead + 2);
+cSlots[2].slot.classList.add('active');
+updateInfo(false);
+setTimeout(activateCenter, 400);
+
+// ─── ROTATION ───────────────────────────────────────────────────
+function rotateCarousel() {
+  if(carAnimating) return;
+  carAnimating = true;
+
+  // Make incoming slot (slot[3]) grow to "active" look DURING the slide
+  cSlots[2].slot.classList.remove('active');
+  cSlots[3].slot.classList.add('active');
+
+  // Slide track one slot to the left
+  carTrack.style.transition = `transform 0.58s cubic-bezier(.4,0,.2,1)`;
+  trackOffset -= SLOT_W;
+  carTrack.style.transform = `translateX(${trackOffset}px)`;
+
+  setTimeout(() => {
+    // Freeze transition for instant DOM snap
+    carTrack.style.transition = 'none';
+
+    // Physically move slot[0] to end of DOM (circular)
+    carTrack.appendChild(cSlots[0].slot);
+    cSlots.push(cSlots.shift()); // rotate JS array too
+
+    // Snap track back: we moved one slot forward, so offset goes back up
+    trackOffset += SLOT_W;
+    carTrack.style.transform = `translateX(${trackOffset}px)`;
+
+    // Force reflow so the snap is instant
+    carTrack.offsetHeight;
+
+    // Re-enable transition for next rotation
+    carTrack.style.transition = 'none';
+
+    // Active class is now on cSlots[2] (correct after array rotation)
+    cSlots.forEach((s, i) => s.slot.classList.toggle('active', i === 2));
+
+    // Fill the newly staged slot[4] with the next future enemy
+    queueHead++;
+    fillSlot(cSlots[4], queueHead + 2);
+
+    // Update info panel with swap animation
+    updateInfo(true);
+
+    // Volcano + pop on new center
+    activateCenter();
+
+    carAnimating = false;
+  }, 600);
+}
+
+setInterval(rotateCarousel, 2800);
 
 // ════════════════════════════════════════════════════════════════
 //  VFX PARTICLE SYSTEM
@@ -802,51 +959,6 @@ function volcanoErupt(hole, enemy) {
   setTimeout(() => hole.classList.remove('glowing'), 900);
 }
 
-// ════════════════════════════════════════════════════════════════
-//  CHARACTER POP SEQUENCE
-// ════════════════════════════════════════════════════════════════
-const activeSlots = new Set();
-
-function popCharacters() {
-  const available = slots.filter((s,i) => !activeSlots.has(i));
-  if(!available.length) return;
-
-  const count = 1 + (Math.random()<0.4 ? 1 : 0); // 1 or 2 at once
-  const picks = available.sort(()=>Math.random()-0.5).slice(0, count);
-
-  picks.forEach(slot => {
-    const i = slots.indexOf(slot);
-    activeSlots.add(i);
-
-    // Pre-eruption glow on hole (150ms before pop)
-    setTimeout(() => volcanoErupt(slot.hole, slot.enemy), 0);
-
-    // Character rises slightly after the eruption starts
-    setTimeout(() => {
-      slot.fig.classList.add('up');
-    }, 180);
-
-    const stayMs = 1400 + Math.random() * 1200;
-    setTimeout(() => {
-      slot.fig.classList.remove('up');
-      activeSlots.delete(i);
-    }, 180 + stayMs);
-  });
-}
-
-// Initial stagger, then keep cycling
-ENEMIES.forEach((_, i) => {
-  setTimeout(() => {
-    const s = slots[i];
-    activeSlots.add(i);
-    volcanoErupt(s.hole, s.enemy);
-    setTimeout(()=>s.fig.classList.add('up'), 180);
-    const stay = 1400 + Math.random()*1200;
-    setTimeout(()=>{ s.fig.classList.remove('up'); activeSlots.delete(i); }, 180+stay);
-  }, i * 260);
-});
-
-setTimeout(() => setInterval(popCharacters, 950), ENEMIES.length * 260 + 600);
 
 // ════════════════════════════════════════════════════════════════
 //  SPACESHIP SYSTEM
