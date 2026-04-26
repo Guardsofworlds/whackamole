@@ -679,6 +679,10 @@ canvas#bg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
       </div>
     </div>
 
+    <div class="report-stat" style="border-top:1px solid var(--border);padding:10px 18px;display:flex;align-items:center;justify-content:space-between">
+      <div class="report-stat-label" style="margin:0">Imperial Credits Earned</div>
+      <div class="report-stat-value" id="endCredits" style="color:var(--gold)">+0 IC</div>
+    </div>
     <div class="report-actions">
       <button class="report-btn secondary" onclick="window.location.href='index.html'">← Lobby</button>
       <button class="report-btn primary" onclick="restartGame()">↺ Redeploy</button>
@@ -1196,6 +1200,33 @@ ENEMIES.forEach(e=>{
   if(el) el.innerHTML=SVGS[e.id];
 });
 
+// ─── COSMETICS ───────────────────────────────────────────────────────────────
+const LASER_COLORS={laser_red:'#ff3333',laser_purple:'#cc44ff',laser_gold:'#ffcc00',default:'#3a8ab4'};
+const HIT_COLORS  ={hit_fire:'#ff6622',hit_plasma:'#bb44ff',hit_gold:'#ffcc00',default:null};
+const HOLE_RIMS   ={hole_rebel:'repeating-conic-gradient(rgba(255,136,0,0.85) 0deg 10deg,rgba(12,18,28,0.95) 10deg 20deg)',
+                    hole_sith: 'repeating-conic-gradient(rgba(200,0,34,0.9) 0deg 10deg,rgba(8,2,4,0.98) 10deg 20deg)',
+                    hole_gold: 'repeating-conic-gradient(rgba(200,144,26,0.9) 0deg 10deg,rgba(10,8,2,0.95) 10deg 20deg)',
+                    default: null};
+(function applyCosmetics(){
+  const eq=JSON.parse(localStorage.getItem('gmh_equipped')||'{}');
+  // Laser color CSS var
+  const laserCol=LASER_COLORS[eq.laser]||LASER_COLORS.default;
+  document.documentElement.style.setProperty('--laser-color',laserCol);
+  // Hole rim override
+  const rimStyle=HOLE_RIMS[eq.holes];
+  if(rimStyle){
+    const sheet=document.createElement('style');
+    sheet.id='cosmeticStyles';
+    sheet.textContent=`.hole::before{background:${rimStyle}!important}`;
+    document.head.appendChild(sheet);
+  }
+})();
+
+function getEquippedHitColor(defaultColor){
+  const eq=JSON.parse(localStorage.getItem('gmh_equipped')||'{}');
+  return HIT_COLORS[eq.effect]||defaultColor;
+}
+
 // ─── DIFFICULTY ──────────────────────────────────────────────────────────────
 const DIFFS = {
   easy:   { time:90,  spawnMin:850, spawnRng:450, stayTime:2100, bossCh:0.03, ptsMult:1.0,  label:'RECRUIT'  },
@@ -1270,15 +1301,16 @@ function playCombo(){ playTone(600+(combo*70),'sine',0.14,0.055,false); }
 
 // ─── VFX ──────────────────────────────────────────────────────────────────────
 function spawnBurst(x,y,color){
+  const c=getEquippedHitColor(color);
   const burst=document.createElement('div');
   burst.className='hit-burst';
-  burst.style.cssText=`left:${x}px;top:${y}px;background:radial-gradient(circle,${color},transparent)`;
+  burst.style.cssText=`left:${x}px;top:${y}px;background:radial-gradient(circle,${c},transparent)`;
   vfx.appendChild(burst);
   setTimeout(()=>burst.remove(),400);
 
   const ring=document.createElement('div');
   ring.style.cssText=`position:absolute;left:${x-18}px;top:${y-18}px;width:36px;height:36px;
-    border-radius:50%;border:2px solid ${color};animation:burstOut 0.45s ease-out forwards;pointer-events:none`;
+    border-radius:50%;border:2px solid ${c};animation:burstOut 0.45s ease-out forwards;pointer-events:none`;
   vfx.appendChild(ring);
   setTimeout(()=>ring.remove(),500);
 
@@ -1287,7 +1319,7 @@ function spawnBurst(x,y,color){
     const dist=28+Math.random()*44;
     const spark=document.createElement('div');
     spark.className='spark';
-    spark.style.cssText=`left:${x}px;top:${y}px;background:${color};
+    spark.style.cssText=`left:${x}px;top:${y}px;background:${c};
       --tx:${Math.cos(angle)*dist}px;--ty:${Math.sin(angle)*dist}px;--dur:${0.25+Math.random()*0.35}s`;
     vfx.appendChild(spark);
     setTimeout(()=>spark.remove(),700);
@@ -1307,12 +1339,13 @@ function spawnLaserRay(fromX,fromY,toX,toY,color){
   const dx=toX-fromX,dy=toY-fromY;
   const len=Math.sqrt(dx*dx+dy*dy);
   const angle=Math.atan2(dy,dx)*180/Math.PI;
+  const laserCol=getComputedStyle(document.documentElement).getPropertyValue('--laser-color').trim()||color;
   const ray=document.createElement('div');
   ray.className='laser-ray';
   ray.style.cssText=`left:${fromX}px;top:${fromY}px;width:${len}px;
     transform:rotate(${angle}deg);
-    background:linear-gradient(to right,#fff 0%,${color} 30%,transparent 100%);
-    box-shadow:0 0 6px ${color},0 0 12px ${color}`;
+    background:linear-gradient(to right,#fff 0%,${laserCol} 30%,transparent 100%);
+    box-shadow:0 0 6px ${laserCol},0 0 12px ${laserCol}`;
   vfx.appendChild(ray);
   setTimeout(()=>ray.remove(),250);
 }
@@ -1500,6 +1533,21 @@ function showEndScreen(){
   gradeEl.style.borderColor=gradeColor;
   gradeEl.style.background=gradeColor+'18';
 
+  // ── Award credits ──
+  const creditMults={easy:0.5,normal:1.0,hard:2.0};
+  const diffKey=Object.keys(DIFFS).find(k=>DIFFS[k]===diff)||'normal';
+  const earned=Math.max(1,Math.floor(score*(creditMults[diffKey]||1)*0.12));
+  const totalCredits=(parseInt(localStorage.getItem('gmh_credits')||'0'))+earned;
+  localStorage.setItem('gmh_credits',totalCredits);
+  document.getElementById('endCredits').textContent='+'+earned+' IC';
+
+  // ── Save to leaderboard ──
+  const lbRaw=localStorage.getItem('gmh_leaderboard');
+  const lb=lbRaw?JSON.parse(lbRaw):[];
+  lb.push({score,hits,acc,combo:maxCombo,diff:diff.label,grade,date:Date.now()});
+  lb.sort((a,b)=>b.score-a.score);
+  localStorage.setItem('gmh_leaderboard',JSON.stringify(lb.slice(0,10)));
+
   endScreen.classList.add('show');
   startBtn.disabled=false;
 }
@@ -1512,396 +1560,343 @@ function restartGame(){
 startBtn.addEventListener('click',startGame);
 
 // ══════════════════════════════════════════════════════════════════
-//  SPACE BATTLE BACKGROUND
-//  Static deep-space scene pre-rendered once → blitted each frame.
-//  Animated: parallax star layers + flying ships + laser combat.
+//  IMPERIAL STAR DESTROYER — COMMAND BRIDGE INTERIOR
+//  Pre-rendered once; animated viewport stars + console blinks.
 // ══════════════════════════════════════════════════════════════════
 const bgCanvas=document.getElementById('bg');
 const bgCtx=bgCanvas.getContext('2d');
 const bgOff=document.createElement('canvas');
 const bgOffCtx=bgOff.getContext('2d');
 
-// ── Animated star layers ──────────────────────────────────────────
-let starsDeep=[],starsMid=[],starsNear=[];
+let vpStars=[], consoleLights=[], blinkT=0;
 
 function resizeBg(){
   bgCanvas.width=innerWidth; bgCanvas.height=innerHeight;
   bgOff.width=innerWidth; bgOff.height=innerHeight;
-  buildStaticBg();
-  initBattleStars();
+  buildBridge();
+  initVpStars();
 }
 
-function buildStaticBg(){
+function buildBridge(){
   const W=bgOff.width,H=bgOff.height,ctx=bgOffCtx;
+  const vx=W*0.5, vy=H*0.40; // vanishing point
   ctx.clearRect(0,0,W,H);
 
-  // Base deep-space gradient
-  const base=ctx.createLinearGradient(0,0,W*0.4,H);
-  base.addColorStop(0,'#02030c'); base.addColorStop(0.5,'#030612'); base.addColorStop(1,'#01020a');
-  ctx.fillStyle=base; ctx.fillRect(0,0,W,H);
+  // ─ 1. BASE ─
+  ctx.fillStyle='#04060c'; ctx.fillRect(0,0,W,H);
 
-  // Nebulae — large atmospheric colour blobs
-  [
-    {x:0.08,y:0.18,r:0.38,c:[110,30,180],a:0.14},
-    {x:0.88,y:0.72,r:0.30,c:[20,70,200],a:0.12},
-    {x:0.52,y:0.44,r:0.50,c:[30,130,210],a:0.07},
-    {x:0.28,y:0.80,r:0.22,c:[200,40,110],a:0.10},
-    {x:0.76,y:0.14,r:0.24,c:[30,190,170],a:0.09},
-    {x:0.60,y:0.88,r:0.20,c:[80,20,160],a:0.08},
-  ].forEach(n=>{
-    const gx=W*n.x,gy=H*n.y,gr=Math.max(W,H)*n.r;
-    const g=ctx.createRadialGradient(gx,gy,0,gx,gy,gr);
-    g.addColorStop(0,`rgba(${n.c},${n.a})`);
-    g.addColorStop(0.5,`rgba(${n.c},${n.a*0.4})`);
-    g.addColorStop(1,'transparent');
+  // ─ 2. VIEWPORT STARFIELD (space visible through windows) ─
+  // Clip to left and right window trapezoids
+  ctx.save();
+  ctx.beginPath();
+  // Left viewport window
+  ctx.moveTo(W*0.07,0); ctx.lineTo(W*0.455,vy); ctx.lineTo(vx-W*0.016,vy); ctx.lineTo(W*0.40,0); ctx.closePath();
+  // Right viewport window
+  ctx.moveTo(W*0.60,0); ctx.lineTo(vx+W*0.016,vy); ctx.lineTo(W*0.545,vy); ctx.lineTo(W*0.93,0); ctx.closePath();
+  ctx.clip();
+  ctx.fillStyle='#01020a'; ctx.fillRect(0,0,W,H);
+  // Nebula colour in viewport
+  [{x:0.25,y:0.14,r:W*0.30,rgb:'110,40,190',a:0.22},
+   {x:0.75,y:0.18,r:W*0.25,rgb:'30,90,220',a:0.18},
+   {x:0.50,y:0.06,r:W*0.18,rgb:'180,50,220',a:0.12}].forEach(n=>{
+    const g=ctx.createRadialGradient(W*n.x,H*n.y,0,W*n.x,H*n.y,n.r);
+    g.addColorStop(0,`rgba(${n.rgb},${n.a})`); g.addColorStop(1,'transparent');
     ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   });
-
-  // Thousands of tiny static distant stars
-  const cnt=Math.floor(W*H/2500);
-  for(let i=0;i<cnt;i++){
-    const x=Math.random()*W,y=Math.random()*H;
-    const r=Math.random()<0.82?Math.random()*0.55+0.12:Math.random()*1.0+0.4;
-    const b=0.25+Math.random()*0.6;
+  // Static stars in viewport
+  for(let i=0;i<550;i++){
+    const x=Math.random()*W,y=Math.random()*vy;
+    ctx.globalAlpha=0.15+Math.random()*0.8;
     const t=Math.random();
-    ctx.fillStyle=t<0.55?`rgba(210,228,255,${b})`:t<0.75?`rgba(175,205,255,${b})`:t<0.88?`rgba(255,232,195,${b})`:`rgba(255,195,175,${b})`;
-    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=t<0.6?'#ddeeff':t<0.8?'#ffe8c8':'#ccddff';
+    ctx.fillRect(x,y,Math.random()*1.1+0.2,Math.random()*1.1+0.2);
   }
-
-  // Accent stars with diffraction spikes
-  for(let i=0;i<Math.floor(W/100);i++){
-    const x=Math.random()*W,y=Math.random()*H,r=1.2+Math.random()*1.1;
-    const hg=ctx.createRadialGradient(x,y,0,x,y,r*9);
-    hg.addColorStop(0,'rgba(180,215,255,0.55)'); hg.addColorStop(1,'transparent');
-    ctx.fillStyle=hg; ctx.fillRect(x-r*9,y-r*9,r*18,r*18);
-    ctx.strokeStyle='rgba(220,238,255,0.35)'; ctx.lineWidth=0.5;
-    ctx.beginPath(); ctx.moveTo(x-r*8,y); ctx.lineTo(x+r*8,y); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x,y-r*8); ctx.lineTo(x,y+r*8); ctx.stroke();
+  // Accent star clusters
+  for(let i=0;i<14;i++){
+    const x=Math.random()*W,y=Math.random()*vy,r=0.9+Math.random()*0.9;
+    ctx.globalAlpha=0.7+Math.random()*0.3;
     ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=0.2; ctx.beginPath(); ctx.arc(x,y,r*4,0,Math.PI*2); ctx.fill();
   }
-
-  // Large planet — lower-left, partially off-screen
-  drawPlanetBg(ctx,W*0.07,H*1.05,Math.min(W,H)*0.40,[40,80,130],[35,110,80],[185,210,230],[90,165,245]);
-
-  // Smaller distant planet — upper right
-  drawPlanetBg(ctx,W*0.91,H*0.10,Math.min(W,H)*0.10,[160,120,80],[120,85,50],[215,195,165],[240,185,110],true);
-
-  // Distant sun glow — upper-left corner
-  const sg=ctx.createRadialGradient(W*0.18,H*0.05,0,W*0.18,H*0.05,Math.min(W,H)*0.28);
-  sg.addColorStop(0,'rgba(255,245,195,0.22)'); sg.addColorStop(0.3,'rgba(255,200,130,0.08)'); sg.addColorStop(1,'transparent');
-  ctx.fillStyle=sg; ctx.fillRect(0,0,W,H);
-  const sc=ctx.createRadialGradient(W*0.18,H*0.05,0,W*0.18,H*0.05,18);
-  sc.addColorStop(0,'rgba(255,255,230,1)'); sc.addColorStop(0.5,'rgba(255,220,170,0.7)'); sc.addColorStop(1,'transparent');
-  ctx.fillStyle=sc; ctx.fillRect(W*0.18-22,H*0.05-22,44,44);
-}
-
-function drawPlanetBg(ctx,cx,cy,rad,base,land,cloud,glow,hasRings=false){
-  // Atmosphere halo
-  const atm=ctx.createRadialGradient(cx,cy,rad*0.93,cx,cy,rad*1.22);
-  atm.addColorStop(0,`rgba(${glow},0.38)`); atm.addColorStop(1,'transparent');
-  ctx.fillStyle=atm; ctx.beginPath(); ctx.arc(cx,cy,rad*1.25,0,Math.PI*2); ctx.fill();
-  // Body
-  const body=ctx.createRadialGradient(cx-rad*0.32,cy-rad*0.32,rad*0.04,cx,cy,rad);
-  body.addColorStop(0,`rgb(${base[0]+42},${base[1]+42},${base[2]+42})`);
-  body.addColorStop(0.5,`rgb(${base[0]},${base[1]},${base[2]})`);
-  body.addColorStop(1,`rgb(${Math.max(0,base[0]-48)},${Math.max(0,base[1]-48)},${Math.max(0,base[2]-48)})`);
-  ctx.fillStyle=body; ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2); ctx.fill();
-  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2); ctx.clip();
-  // Continents
-  for(let i=0;i<12;i++){
-    const a=Math.random()*Math.PI*2,d=Math.random()*rad*0.82;
-    const px=cx+Math.cos(a)*d,py=cy+Math.sin(a)*d,sz=rad*(0.05+Math.random()*0.11);
-    ctx.fillStyle=`rgba(${land},0.68)`;
-    ctx.beginPath(); ctx.ellipse(px,py,sz,sz*(0.4+Math.random()*0.55),Math.random()*Math.PI,0,Math.PI*2); ctx.fill();
-  }
-  // Cloud bands
-  for(let i=0;i<6;i++){
-    const ya=cy+(Math.random()-0.5)*rad*1.5,bw=rad*1.8;
-    const cg=ctx.createLinearGradient(cx-bw/2,ya,cx+bw/2,ya);
-    cg.addColorStop(0,'transparent'); cg.addColorStop(0.5,`rgba(${cloud},0.28)`); cg.addColorStop(1,'transparent');
-    ctx.fillStyle=cg; ctx.fillRect(cx-bw/2,ya-3,bw,5+Math.random()*5);
-  }
-  // Terminator
-  const term=ctx.createLinearGradient(cx-rad,cy,cx+rad,cy);
-  term.addColorStop(0,'transparent'); term.addColorStop(0.82,'rgba(0,0,0,0.5)'); term.addColorStop(1,'rgba(0,0,0,0.88)');
-  ctx.fillStyle=term; ctx.fillRect(cx-rad,cy-rad,rad*2,rad*2);
-  // Specular
-  const spec=ctx.createRadialGradient(cx-rad*0.42,cy-rad*0.42,0,cx-rad*0.42,cy-rad*0.42,rad*0.58);
-  spec.addColorStop(0,'rgba(255,255,255,0.17)'); spec.addColorStop(1,'transparent');
-  ctx.fillStyle=spec; ctx.fillRect(cx-rad,cy-rad,rad*2,rad*2);
+  ctx.globalAlpha=1;
   ctx.restore();
-  if(hasRings){
-    ctx.save(); ctx.translate(cx,cy); ctx.rotate(-0.28);
-    for(let r=rad*1.5;r<rad*2.1;r+=2.2){
-      ctx.globalAlpha=0.08+Math.random()*0.12;
-      ctx.strokeStyle=`rgb(${land})`; ctx.lineWidth=1.5;
-      ctx.beginPath(); ctx.ellipse(0,0,r,r*0.2,0,0,Math.PI*2); ctx.stroke();
+
+  // Hand off to the rest of the bridge drawing
+  finishBridge(ctx,W,H,vx,vy);
+}
+
+// ─ REMAINING STATIC BRIDGE ELEMENTS (appended inside buildBridge) ─
+// These are called at end of buildBridge via a closure trick — see below.
+
+function finishBridge(ctx,W,H,vx,vy){
+  // ─ 3. WINDOW FRAMES + CENTRAL STRUT ─
+  // Central strut (structural column between the two windows)
+  const strutG=ctx.createLinearGradient(vx-W*0.016,0,vx+W*0.016,0);
+  strutG.addColorStop(0,'#0a1220'); strutG.addColorStop(0.5,'#1a2a3c'); strutG.addColorStop(1,'#0a1220');
+  ctx.fillStyle=strutG;
+  ctx.beginPath();
+  ctx.moveTo(W*0.40,0); ctx.lineTo(W*0.455,vy); ctx.lineTo(vx+W*0.016,vy); ctx.lineTo(W*0.60,0);
+  ctx.closePath(); ctx.fill();
+  // Strut bolt detail
+  ctx.fillStyle='#1e3048';
+  [0.15,0.35,0.55,0.75].forEach(t=>{
+    const sx=vx+(W*0.016*(t-0.5)*0.2), sy=vy*t;
+    ctx.beginPath(); ctx.arc(sx,sy,3,0,Math.PI*2); ctx.fill();
+  });
+  // Window frame edges (the structural border around each viewport)
+  ctx.strokeStyle='#1e3048'; ctx.lineWidth=3.5;
+  [[W*0.07,0,W*0.455,vy],[W*0.40,0,W*0.455,vy]].forEach(([x1,y1,x2,y2])=>{
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  });
+  [[W*0.93,0,W*0.545,vy],[W*0.60,0,W*0.545,vy]].forEach(([x1,y1,x2,y2])=>{
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  });
+  // Horizontal window sill at vy
+  ctx.strokeStyle='rgba(60,100,150,0.7)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(W*0.07,vy); ctx.lineTo(W*0.93,vy); ctx.stroke();
+  // Viewport glow (light spill from outside onto inner walls)
+  const vpSpill=ctx.createLinearGradient(0,0,0,vy);
+  vpSpill.addColorStop(0,'rgba(130,175,255,0.12)'); vpSpill.addColorStop(1,'transparent');
+  ctx.fillStyle=vpSpill;
+  ctx.beginPath(); ctx.moveTo(W*0.07,0); ctx.lineTo(W*0.455,vy); ctx.lineTo(W*0.545,vy); ctx.lineTo(W*0.93,0); ctx.closePath(); ctx.fill();
+
+  // ─ 4. UPPER SIDE WALLS (flanking the viewports) ─
+  const sideG=ctx.createLinearGradient(0,0,W*0.1,0);
+  sideG.addColorStop(0,'#0e1828'); sideG.addColorStop(1,'transparent');
+  ctx.fillStyle=sideG;
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(W*0.07,0); ctx.lineTo(W*0.455,vy); ctx.lineTo(0,vy); ctx.closePath(); ctx.fill();
+  const sideGR=ctx.createLinearGradient(W,0,W*0.9,0);
+  sideGR.addColorStop(0,'#0e1828'); sideGR.addColorStop(1,'transparent');
+  ctx.fillStyle=sideGR;
+  ctx.beginPath(); ctx.moveTo(W,0); ctx.lineTo(W*0.93,0); ctx.lineTo(W*0.545,vy); ctx.lineTo(W,vy); ctx.closePath(); ctx.fill();
+  // Side wall panel lines
+  ctx.strokeStyle='rgba(35,60,90,0.45)'; ctx.lineWidth=0.8;
+  for(let t=0;t<1;t+=0.18){
+    const y=vy*t;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W*0.07*(t+0.05),y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W,y); ctx.lineTo(W*(1-0.07*(t+0.05)),y); ctx.stroke();
+  }
+
+  // ─ 5. CEILING HEADER BAR (very top) ─
+  const ceilH=H*0.045;
+  const ceilG=ctx.createLinearGradient(0,0,0,ceilH*2.5);
+  ceilG.addColorStop(0,'#131e30'); ceilG.addColorStop(1,'transparent');
+  ctx.fillStyle=ceilG; ctx.fillRect(0,0,W,ceilH*2.5);
+  // Bright overhead strip lights
+  ctx.fillStyle='rgba(220,235,255,0.55)'; ctx.fillRect(W*0.12,H*0.008,W*0.76,2);
+  ctx.fillStyle='rgba(180,205,245,0.25)'; ctx.fillRect(W*0.08,H*0.024,W*0.84,1.5);
+  // Strip glow halo
+  const stG=ctx.createLinearGradient(0,0,0,ceilH*3);
+  stG.addColorStop(0,'rgba(200,220,255,0.18)'); stG.addColorStop(1,'transparent');
+  ctx.fillStyle=stG; ctx.fillRect(0,0,W,ceilH*3);
+  // Structural ribs across ceiling
+  ctx.strokeStyle='rgba(20,38,60,0.7)'; ctx.lineWidth=1.5;
+  for(let i=1;i<8;i++){
+    ctx.beginPath(); ctx.moveTo(0,vy*i/8); ctx.lineTo(W,vy*i/8); ctx.stroke();
+  }
+
+  // ─ 6. FLOOR (below horizon) ─
+  const flG=ctx.createLinearGradient(0,vy,0,H);
+  flG.addColorStop(0,'#0c1525'); flG.addColorStop(0.5,'#090f1c'); flG.addColorStop(1,'#060810');
+  ctx.fillStyle=flG; ctx.fillRect(0,vy,W,H-vy);
+
+  // Floor perspective grid
+  ctx.strokeStyle='rgba(25,50,80,0.5)'; ctx.lineWidth=0.7;
+  // Horizontal lines (closer = lower = more spread)
+  for(let i=0;i<=14;i++){
+    const t=i/14, y=vy+(H-vy)*Math.pow(t,2.2);
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+  // Vertical perspective lines converging to vx
+  for(let i=0;i<=22;i++){
+    const bx=(i/22)*W;
+    ctx.beginPath(); ctx.moveTo(bx,H); ctx.lineTo(vx,vy); ctx.stroke();
+  }
+  // Floor panel accent (metallic sheen band)
+  const fpG=ctx.createLinearGradient(0,vy,W,vy);
+  fpG.addColorStop(0,'transparent'); fpG.addColorStop(0.5,'rgba(60,100,150,0.08)'); fpG.addColorStop(1,'transparent');
+  ctx.fillStyle=fpG; ctx.fillRect(0,vy,W,H-vy);
+
+  // ─ 7. SIDE WALLS (below horizon) ─
+  const lwG2=ctx.createLinearGradient(0,vy,W*0.18,vy);
+  lwG2.addColorStop(0,'#101e30'); lwG2.addColorStop(1,'transparent');
+  ctx.fillStyle=lwG2; ctx.fillRect(0,vy,W*0.18,H-vy);
+  const rwG2=ctx.createLinearGradient(W,vy,W*0.82,vy);
+  rwG2.addColorStop(0,'#101e30'); rwG2.addColorStop(1,'transparent');
+  ctx.fillStyle=rwG2; ctx.fillRect(W*0.82,vy,W*0.18,H-vy);
+  // Side wall panel grid
+  ctx.strokeStyle='rgba(25,50,78,0.4)'; ctx.lineWidth=0.7;
+  const pW=W*0.058;
+  for(let px=0;px<W*0.19;px+=pW){
+    ctx.beginPath(); ctx.moveTo(px,vy); ctx.lineTo(px,H); ctx.stroke();
+    for(let py=vy;py<H;py+=H*0.09){
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(Math.min(px+pW,W*0.19),py); ctx.stroke();
     }
-    ctx.globalAlpha=1; ctx.restore();
+  }
+  for(let px=W;px>W*0.81;px-=pW){
+    ctx.beginPath(); ctx.moveTo(px,vy); ctx.lineTo(px,H); ctx.stroke();
+    for(let py=vy;py<H;py+=H*0.09){
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(Math.max(px-pW,W*0.81),py); ctx.stroke();
+    }
+  }
+
+  // ─ 8. CREW PITS ─
+  const pitY=vy+H*0.07, pitH2=H*0.13, pitDepth=H*0.08;
+  // Left pit
+  const lPx=W*0.14;
+  drawPit(ctx,lPx,pitY,W*0.24,pitH2,pitDepth);
+  // Right pit
+  const rPx=W*0.62;
+  drawPit(ctx,rPx,pitY,W*0.24,pitH2,pitDepth);
+  // Central walkway between pits
+  const walkG=ctx.createLinearGradient(0,pitY,0,pitY+pitH2+pitDepth);
+  walkG.addColorStop(0,'#141e2e'); walkG.addColorStop(1,'#0a1018');
+  ctx.fillStyle=walkG;
+  ctx.fillRect(lPx+W*0.24,pitY-2,rPx-(lPx+W*0.24),pitH2+pitDepth+4);
+  // Walkway center stripe
+  ctx.strokeStyle='rgba(50,90,140,0.25)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(vx,vy); ctx.lineTo(vx,H); ctx.stroke();
+
+  // ─ 9. CONSOLES AT PIT EDGES ─
+  drawConsoles(ctx,lPx,pitY,W*0.24,6);
+  drawConsoles(ctx,rPx,pitY,W*0.24,6);
+
+  // ─ 10. ATMOSPHERIC LIGHT POOLS ─
+  // Light from viewport falling onto floor
+  const vpFloor=ctx.createRadialGradient(vx,vy,0,vx,vy,H*0.55);
+  vpFloor.addColorStop(0,'rgba(130,175,240,0.09)'); vpFloor.addColorStop(1,'transparent');
+  ctx.fillStyle=vpFloor; ctx.fillRect(0,0,W,H);
+  // Console glow ambient (left and right)
+  [[lPx+W*0.12,pitY+pitDepth*0.3,'rgba(40,190,100,'],[rPx+W*0.12,pitY+pitDepth*0.3,'rgba(200,160,40,']].forEach(([gx,gy,c])=>{
+    const cg=ctx.createRadialGradient(gx,gy,0,gx,gy,W*0.18);
+    cg.addColorStop(0,c+'0.07)'); cg.addColorStop(1,'transparent');
+    ctx.fillStyle=cg; ctx.fillRect(0,0,W,H);
+  });
+  // Horizon glow
+  const hzG=ctx.createLinearGradient(0,vy-4,0,vy+6);
+  hzG.addColorStop(0,'transparent'); hzG.addColorStop(0.5,'rgba(80,140,220,0.3)'); hzG.addColorStop(1,'transparent');
+  ctx.fillStyle=hzG; ctx.fillRect(0,vy-4,W,10);
+  // Vignette
+  const vig=ctx.createRadialGradient(vx,H*0.55,0,vx,H*0.55,Math.max(W,H)*0.72);
+  vig.addColorStop(0,'transparent'); vig.addColorStop(1,'rgba(0,0,0,0.6)');
+  ctx.fillStyle=vig; ctx.fillRect(0,0,W,H);
+  // Top vignette (makes ceiling very dark)
+  const topVig=ctx.createLinearGradient(0,0,0,H*0.08);
+  topVig.addColorStop(0,'rgba(0,0,0,0.7)'); topVig.addColorStop(1,'transparent');
+  ctx.fillStyle=topVig; ctx.fillRect(0,0,W,H*0.08);
+}
+
+function drawPit(ctx,px,py,pw,ph,depth){
+  // Near wall (bright top edge of pit)
+  const pwG=ctx.createLinearGradient(px,py,px,py+depth);
+  pwG.addColorStop(0,'#1c2e42'); pwG.addColorStop(1,'#0a1220');
+  ctx.fillStyle=pwG; ctx.fillRect(px,py,pw,depth);
+  // Pit floor
+  ctx.fillStyle='#060b10'; ctx.fillRect(px+3,py+depth,pw-6,ph);
+  // Pit top edge highlight (the lip)
+  ctx.strokeStyle='rgba(55,95,145,0.65)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+pw,py); ctx.stroke();
+  ctx.strokeStyle='rgba(30,60,95,0.4)'; ctx.lineWidth=0.8;
+  ctx.beginPath(); ctx.moveTo(px,py+depth); ctx.lineTo(px+pw,py+depth); ctx.stroke();
+  // Far pit wall (faint)
+  ctx.fillStyle='rgba(15,28,45,0.8)'; ctx.fillRect(px+3,py+depth+ph-4,pw-6,4);
+  // Divider lines
+  ctx.strokeStyle='rgba(25,50,78,0.5)'; ctx.lineWidth=0.7;
+  const step=pw/6;
+  for(let i=1;i<6;i++){
+    const lx=px+i*step;
+    ctx.beginPath(); ctx.moveTo(lx,py); ctx.lineTo(lx,py+depth*0.8); ctx.stroke();
   }
 }
 
-function initBattleStars(){
-  starsDeep=[]; starsMid=[]; starsNear=[];
-  const W=bgCanvas.width,H=bgCanvas.height;
-  for(let i=0;i<Math.floor(W*H/12000);i++) starsDeep.push({x:Math.random()*W,y:Math.random()*H,r:0.28+Math.random()*0.45,sp:0.03+Math.random()*0.07,tw:Math.random()*Math.PI*2,tws:0.005+Math.random()*0.012,c:'rgba(190,210,240,'});
-  for(let i=0;i<Math.floor(W*H/18000);i++) starsMid.push({x:Math.random()*W,y:Math.random()*H,r:0.45+Math.random()*0.8,sp:0.09+Math.random()*0.13,tw:Math.random()*Math.PI*2,tws:0.008+Math.random()*0.016,c:Math.random()<0.65?'rgba(215,232,255,':'rgba(255,222,195,'});
-  for(let i=0;i<Math.floor(W*H/28000);i++) starsNear.push({x:Math.random()*W,y:Math.random()*H,r:0.7+Math.random()*1.3,sp:0.16+Math.random()*0.18,tw:Math.random()*Math.PI*2,tws:0.010+Math.random()*0.022,c:Math.random()<0.6?'rgba(255,255,255,':'rgba(175,215,255,'});
+function drawConsoles(ctx,px,py,pw,count){
+  const dw=pw/count;
+  for(let i=0;i<count;i++){
+    const dx=px+i*dw+2, dh=16;
+    // Desk surface
+    ctx.fillStyle='#0d1828'; ctx.fillRect(dx,py-dh,dw-4,dh);
+    ctx.strokeStyle='rgba(35,65,100,0.5)'; ctx.lineWidth=0.8; ctx.strokeRect(dx,py-dh,dw-4,dh);
+    // Screen
+    const isGreen=Math.random()<0.55;
+    ctx.fillStyle=isGreen?'rgba(30,180,90,0.32)':'rgba(190,150,35,0.32)';
+    ctx.fillRect(dx+2,py-dh+2,dw-8,dh-5);
+    // Indicator dots
+    const dotColors=['#ff3333','#33cc55','#3388ff','#ffcc00'];
+    dotColors.forEach((dc,di)=>{
+      ctx.fillStyle=dc; ctx.globalAlpha=0.7;
+      ctx.beginPath(); ctx.arc(dx+3+di*3.5,py-2.5,1.3,0,Math.PI*2); ctx.fill();
+    });
+    ctx.globalAlpha=1;
+  }
 }
 
-// ── Space Battle Ships ────────────────────────────────────────────
-const ships=[];
-const explosions=[];
-const spaceLasers=[];
-
-// Ship types
-const SHIP_TYPES={
-  destroyer:{w:110,h:28,speed:0.55,color:'#4a6a8a',accentColor:'#8ab4d4',hp:12,fireRate:220},
-  fighter:  {w:42, h:14,speed:2.2, color:'#6a8aaa',accentColor:'#aad0ea',hp:3, fireRate:80 },
-  tie:      {w:38, h:34,speed:2.8, color:'#3a4a5a',accentColor:'#7a9ab8',hp:2, fireRate:65 },
-};
-
-function spawnShip(){
-  const types=Object.keys(SHIP_TYPES);
-  const typeKey=types[Math.floor(Math.random()*types.length)];
-  const t=SHIP_TYPES[typeKey];
-  const fromLeft=Math.random()<0.5;
-  const depth=0.3+Math.random()*0.7; // 0.3=far, 1.0=near
-  ships.push({
-    type:typeKey, x:fromLeft?-t.w-20:innerWidth+t.w+20,
-    y:40+Math.random()*(innerHeight-80),
-    vy:(Math.random()-0.5)*0.4,
-    speed:(fromLeft?1:-1)*t.speed*(0.6+depth*0.6),
-    dir:fromLeft?1:-1,
-    alpha:0.3+depth*0.55,
-    scale:0.4+depth*0.7,
-    hp:t.hp, maxHp:t.hp,
-    nextFire:Math.random()*t.fireRate,
-    fireRate:t.fireRate,
-    dead:false,
-    ...t
+// Store console light positions for per-frame blink animation
+function initVpStars(){
+  vpStars=[];
+  consoleLights=[];
+  const W=bgCanvas.width, H=bgCanvas.height;
+  const vy=H*0.40;
+  const n=Math.floor(W*H/22000);
+  for(let i=0;i<n;i++) vpStars.push({
+    x:Math.random()*W, y:Math.random()*vy,
+    r:0.3+Math.random()*1.0, tw:Math.random()*Math.PI*2,
+    tws:0.01+Math.random()*0.025, sp:0.04+Math.random()*0.10,
+    c:Math.random()<0.65?'rgba(210,230,255,':'rgba(255,225,195,'
+  });
+  // Register random console light blink positions
+  const pitY=vy+H*0.07;
+  [[W*0.14,W*0.24],[W*0.62,W*0.24]].forEach(([pitX,pitW])=>{
+    const dw=pitW/6;
+    for(let i=0;i<6;i++){
+      ['#ff3333','#33cc55','#ffcc00','#3388ff'].forEach((col,ci)=>{
+        consoleLights.push({
+          x:pitX+i*dw+3+ci*3.5, y:pitY-2.5,
+          col, phase:Math.random()*Math.PI*2,
+          spd:0.02+Math.random()*0.06, onProb:0.85
+        });
+      });
+    }
   });
 }
 
-// Pre-draw ship shapes into offscreen canvases for fast blitting
-const shipCanvases={};
-(function buildShipCanvases(){
-  // Destroyer (large wedge — Imperial style)
-  {
-    const c=document.createElement('canvas'); c.width=160;c.height=60;
-    const x=c.getContext('2d');
-    // Hull
-    const g=x.createLinearGradient(0,10,0,50);
-    g.addColorStop(0,'#5a7a9a');g.addColorStop(0.5,'#3a5a78');g.addColorStop(1,'#1e3248');
-    x.fillStyle=g;
-    x.beginPath();x.moveTo(155,30);x.lineTo(10,10);x.lineTo(5,30);x.lineTo(10,50);x.closePath();x.fill();
-    // Bridge tower
-    x.fillStyle='#4a6a88';
-    x.fillRect(50,14,30,8);x.fillRect(58,9,14,6);
-    // Hull stripe
-    x.strokeStyle='rgba(140,190,230,0.4)';x.lineWidth=1;
-    x.beginPath();x.moveTo(155,30);x.lineTo(10,30);x.stroke();
-    // Engine glow
-    const eg=x.createRadialGradient(8,30,0,8,30,16);
-    eg.addColorStop(0,'rgba(80,200,255,0.9)');eg.addColorStop(1,'transparent');
-    x.fillStyle=eg;x.beginPath();x.arc(8,30,16,0,Math.PI*2);x.fill();
-    shipCanvases.destroyer=c;
-  }
-  // Fighter (X-Wing style)
-  {
-    const c=document.createElement('canvas'); c.width=70;c.height=60;
-    const x=c.getContext('2d');
-    const g=x.createLinearGradient(0,0,0,60);
-    g.addColorStop(0,'#7a9aba');g.addColorStop(1,'#3a5a78');
-    // Fuselage
-    x.fillStyle=g;
-    x.beginPath();x.moveTo(65,28);x.lineTo(10,22);x.lineTo(5,30);x.lineTo(10,38);x.lineTo(65,32);x.closePath();x.fill();
-    // S-foils (wings)
-    x.fillStyle='#4a6a88';
-    x.fillRect(15,10,28,8);x.fillRect(15,42,28,8);
-    x.fillRect(12,8,6,4);x.fillRect(12,48,6,4);
-    // Engine pods
-    [[10,10],[10,48]].forEach(([px,py])=>{
-      const eg=x.createRadialGradient(px,py,0,px,py,8);
-      eg.addColorStop(0,'rgba(100,220,255,0.9)');eg.addColorStop(1,'transparent');
-      x.fillStyle=eg;x.beginPath();x.arc(px,py,8,0,Math.PI*2);x.fill();
-    });
-    // Nose glow
-    const ng=x.createRadialGradient(65,30,0,65,30,8);
-    ng.addColorStop(0,'rgba(100,200,255,0.4)');ng.addColorStop(1,'transparent');
-    x.fillStyle=ng;x.beginPath();x.arc(65,30,8,0,Math.PI*2);x.fill();
-    shipCanvases.fighter=c;
-  }
-  // TIE Fighter
-  {
-    const c=document.createElement('canvas'); c.width=60;c.height=60;
-    const x=c.getContext('2d');
-    // Left wing
-    x.fillStyle='#3a4a5a';
-    x.fillRect(0,8,14,44);
-    // Wing bracing
-    x.strokeStyle='rgba(120,170,210,0.5)';x.lineWidth=1;
-    x.beginPath();x.moveTo(14,10);x.lineTo(22,20);x.stroke();
-    x.beginPath();x.moveTo(14,50);x.lineTo(22,40);x.stroke();
-    // Right wing
-    x.fillStyle='#3a4a5a';
-    x.fillRect(46,8,14,44);
-    x.strokeStyle='rgba(120,170,210,0.5)';x.lineWidth=1;
-    x.beginPath();x.moveTo(46,10);x.lineTo(38,20);x.stroke();
-    x.beginPath();x.moveTo(46,50);x.lineTo(38,40);x.stroke();
-    // Cockpit ball
-    const cg=x.createRadialGradient(25,26,0,30,30,14);
-    cg.addColorStop(0,'#5a7a9a');cg.addColorStop(1,'#1e3248');
-    x.fillStyle=cg;x.beginPath();x.arc(30,30,12,0,Math.PI*2);x.fill();
-    // Cockpit window
-    x.fillStyle='rgba(80,180,255,0.6)';x.beginPath();x.arc(30,30,5,0,Math.PI*2);x.fill();
-    // Engine trail side
-    const eg=x.createRadialGradient(30,30,0,30,30,8);
-    eg.addColorStop(0,'rgba(80,200,255,0.3)');eg.addColorStop(1,'transparent');
-    x.fillStyle=eg;x.beginPath();x.arc(30,30,8,0,Math.PI*2);x.fill();
-    shipCanvases.tie=c;
-  }
-})();
-
-function findTarget(ship){
-  return ships.find(s=>s!==ship && !s.dead && Math.abs(s.y-ship.y)<120);
-}
-
-function fireShipLaser(ship){
-  const target=findTarget(ship);
-  const ty=target?target.y:ship.y+(Math.random()-0.5)*80;
-  const tx=target?target.x:(ship.dir>0?innerWidth+200:-200);
-  spaceLasers.push({
-    x:ship.x+(ship.dir>0?ship.w*ship.scale*0.5:-ship.w*ship.scale*0.5),
-    y:ship.y,tx,ty,
-    vx:ship.dir*(8+Math.random()*6)*ship.scale,
-    vy:(ty-ship.y)*0.04,
-    life:1,color:Math.random()<0.5?'#00e5ff':'#ff4444',
-    target, ship
-  });
-}
-
-function spawnExplosion(x,y,scale=1){
-  for(let i=0;i<12;i++){
-    const ang=Math.random()*Math.PI*2, spd=1+Math.random()*3*scale;
-    explosions.push({
-      x,y,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,
-      life:1,r:(2+Math.random()*4)*scale,
-      color:Math.random()<0.5?'#ff8840':'#ffcc40',
-    });
-  }
-}
-
-// Manage ship population
-setInterval(()=>{ if(ships.filter(s=>!s.dead).length<4) spawnShip(); },1200);
-spawnShip(); spawnShip();
-
-// ── Main draw loop ────────────────────────────────────────────────
 function drawBg(){
-  const W=bgCanvas.width,H=bgCanvas.height;
-  // Fast blit of static scene
+  const W=bgCanvas.width, H=bgCanvas.height, vy=H*0.40, vx=W*0.5;
   bgCtx.drawImage(bgOff,0,0);
 
-  // Animated parallax star layers (additive — no shadowBlur)
+  // ── Animated viewport stars (drift slowly upward through windows) ──
+  bgCtx.save();
+  bgCtx.beginPath();
+  bgCtx.moveTo(W*0.07,0); bgCtx.lineTo(W*0.455,vy); bgCtx.lineTo(vx-W*0.016,vy); bgCtx.lineTo(W*0.40,0); bgCtx.closePath();
+  bgCtx.moveTo(W*0.60,0); bgCtx.lineTo(vx+W*0.016,vy); bgCtx.lineTo(W*0.545,vy); bgCtx.lineTo(W*0.93,0); bgCtx.closePath();
+  bgCtx.clip();
   bgCtx.globalCompositeOperation='lighter';
-  for(const s of starsDeep){
+  for(const s of vpStars){
     s.tw+=s.tws;
-    bgCtx.globalAlpha=0.18+0.38*Math.abs(Math.sin(s.tw));
-    bgCtx.fillStyle=s.c+'1)'; bgCtx.fillRect(s.x,s.y,s.r,s.r);
-    s.y+=s.sp; if(s.y>H){s.y=0;s.x=Math.random()*W;}
-  }
-  for(const s of starsMid){
-    s.tw+=s.tws;
-    bgCtx.globalAlpha=0.28+0.48*Math.abs(Math.sin(s.tw));
+    bgCtx.globalAlpha=(0.2+0.5*Math.abs(Math.sin(s.tw)))*0.7;
     bgCtx.fillStyle=s.c+'1)';
-    bgCtx.beginPath();bgCtx.arc(s.x,s.y,s.r,0,Math.PI*2);bgCtx.fill();
-    s.y+=s.sp; if(s.y>H){s.y=0;s.x=Math.random()*W;}
+    bgCtx.beginPath(); bgCtx.arc(s.x,s.y,s.r,0,Math.PI*2); bgCtx.fill();
+    s.y-=s.sp; if(s.y<0){s.y=vy; s.x=Math.random()*W;}
   }
-  for(const s of starsNear){
-    s.tw+=s.tws;
-    bgCtx.globalAlpha=0.45+0.5*Math.abs(Math.sin(s.tw));
-    bgCtx.fillStyle=s.c+'1)';
-    bgCtx.beginPath();bgCtx.arc(s.x,s.y,s.r,0,Math.PI*2);bgCtx.fill();
-    s.y+=s.sp; if(s.y>H){s.y=0;s.x=Math.random()*W;}
+  bgCtx.globalAlpha=1; bgCtx.globalCompositeOperation='source-over';
+  bgCtx.restore();
+
+  // ── Console indicator lights (blink) ──
+  blinkT+=0.04;
+  for(const cl of consoleLights){
+    const on=Math.sin(cl.phase+blinkT*cl.spd*40)>-cl.onProb*2+1;
+    bgCtx.globalAlpha=on?(0.55+0.4*Math.abs(Math.sin(cl.phase+blinkT*cl.spd*20))):0.08;
+    bgCtx.fillStyle=cl.col;
+    bgCtx.beginPath(); bgCtx.arc(cl.x,cl.y,1.3,0,Math.PI*2); bgCtx.fill();
   }
   bgCtx.globalAlpha=1;
-  bgCtx.globalCompositeOperation='source-over';
-
-  // ── Ships ──
-  for(let i=ships.length-1;i>=0;i--){
-    const s=ships[i];
-    if(s.dead){ ships.splice(i,1); continue; }
-    s.x+=s.speed; s.y+=s.vy; s.vy*=0.98; s.vy+=(Math.random()-0.5)*0.08;
-    s.nextFire--;
-    if(s.nextFire<=0){
-      fireShipLaser(s);
-      s.nextFire=s.fireRate*(0.7+Math.random()*0.6);
-    }
-    // Cull off-screen
-    if(s.x<-200||s.x>W+200){ ships.splice(i,1); continue; }
-    // Draw — blit pre-rendered shape
-    const sc=shipCanvases[s.type];
-    if(!sc) continue;
-    bgCtx.save();
-    bgCtx.globalAlpha=s.alpha;
-    bgCtx.translate(s.x,s.y);
-    if(s.dir<0){ bgCtx.scale(-1,1); }
-    bgCtx.scale(s.scale,s.scale);
-    bgCtx.drawImage(sc,-sc.width/2,-sc.height/2);
-    // Engine trail
-    bgCtx.globalCompositeOperation='lighter';
-    bgCtx.globalAlpha=s.alpha*0.55;
-    const tg=bgCtx.createRadialGradient(-sc.width/2*0.9,0,0,-sc.width/2*0.9,0,14*s.scale);
-    tg.addColorStop(0,'rgba(80,210,255,0.8)');tg.addColorStop(1,'transparent');
-    bgCtx.fillStyle=tg;
-    bgCtx.beginPath();bgCtx.arc(-sc.width/2*0.9,0,14*s.scale,0,Math.PI*2);bgCtx.fill();
-    bgCtx.globalCompositeOperation='source-over';
-    bgCtx.restore();
-  }
-
-  // ── Space lasers ──
-  bgCtx.globalCompositeOperation='lighter';
-  for(let i=spaceLasers.length-1;i>=0;i--){
-    const l=spaceLasers[i];
-    l.x+=l.vx; l.y+=l.vy; l.life-=0.03;
-    if(l.life<=0||l.x<-100||l.x>W+100){ spaceLasers.splice(i,1); continue; }
-    // Check hit on target ship
-    if(l.target&&!l.target.dead){
-      const dx=l.x-l.target.x, dy=l.y-l.target.y;
-      if(Math.hypot(dx,dy)<20*l.target.scale){
-        l.target.hp--;
-        if(l.target.hp<=0){
-          spawnExplosion(l.target.x,l.target.y,l.target.scale);
-          l.target.dead=true;
-          setTimeout(spawnShip,2000+Math.random()*3000);
-        }
-        spaceLasers.splice(i,1); continue;
-      }
-    }
-    bgCtx.globalAlpha=l.life*0.85;
-    bgCtx.strokeStyle=l.color; bgCtx.lineWidth=3;
-    bgCtx.beginPath(); bgCtx.moveTo(l.x-l.vx*5,l.y-l.vy*5); bgCtx.lineTo(l.x+l.vx*1.5,l.y+l.vy*1.5); bgCtx.stroke();
-    bgCtx.strokeStyle='rgba(255,255,255,0.9)'; bgCtx.lineWidth=1;
-    bgCtx.beginPath(); bgCtx.moveTo(l.x-l.vx*2,l.y-l.vy*2); bgCtx.lineTo(l.x+l.vx*1.5,l.y+l.vy*1.5); bgCtx.stroke();
-  }
-
-  // ── Explosions ──
-  for(let i=explosions.length-1;i>=0;i--){
-    const e=explosions[i];
-    e.x+=e.vx; e.y+=e.vy; e.vx*=0.93; e.vy*=0.93; e.life-=0.025;
-    if(e.life<=0){ explosions.splice(i,1); continue; }
-    bgCtx.globalAlpha=e.life*0.9;
-    bgCtx.fillStyle=e.color;
-    bgCtx.beginPath(); bgCtx.arc(e.x,e.y,e.r*e.life,0,Math.PI*2); bgCtx.fill();
-    // Outer halo
-    bgCtx.globalAlpha=e.life*0.25;
-    bgCtx.beginPath(); bgCtx.arc(e.x,e.y,e.r*e.life*2.5,0,Math.PI*2); bgCtx.fill();
-  }
-  bgCtx.globalAlpha=1;
-  bgCtx.globalCompositeOperation='source-over';
 
   requestAnimationFrame(drawBg);
 }
+
+// (initVpStars defined above inside the ISD system)
+
+// ─── BOOT ────────────────────────────────────────────────────────────────────
+
 
 resizeBg(); drawBg();
 window.addEventListener('resize',()=>{ resizeBg(); });
